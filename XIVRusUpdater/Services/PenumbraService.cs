@@ -52,6 +52,7 @@ public sealed class PenumbraService
         catch(IpcNotReadyError)
         {
             // Do nothing, OnPenumbraInitialized do all works
+            Plugin.Log.Information("IPC Not Ready... Waiting Penumbra...");
         }
     }
 
@@ -113,16 +114,14 @@ public sealed class PenumbraService
 
         var modSettings = ModSettings.Invoke(collectionId.Value, string.Empty, modName);
 
-        // TODO: Add logs here
         switch(modSettings.Item1)
         {
             case Penumbra.Api.Enums.PenumbraApiEc.Success:
                 return modSettings.Item2?.Item1 ?? false;
             case Penumbra.Api.Enums.PenumbraApiEc.InvalidArgument:
-                break;
             case Penumbra.Api.Enums.PenumbraApiEc.CollectionMissing:
-                break;
             case Penumbra.Api.Enums.PenumbraApiEc.ModMissing:
+                Plugin.Log.Error($"Failed to determinate enabled state: Recieve {Enum.GetName(modSettings.Item1)} from Penumbra");
                 break;
         }
 
@@ -149,7 +148,9 @@ public sealed class PenumbraService
         var responce = DeleteMod.Invoke(string.Empty, modName);
 
         if (responce == Penumbra.Api.Enums.PenumbraApiEc.Success) return true;
-        else return false;
+
+        Plugin.Log.Error($"Failed to delete plugin: Recieve {Enum.GetName(responce)} from Penumbra");
+        return false;
     }
 
     public bool ReloadMods(string modName)
@@ -157,7 +158,9 @@ public sealed class PenumbraService
         var response = ReloadMod.Invoke(string.Empty, modName);
 
         if (response == Penumbra.Api.Enums.PenumbraApiEc.Success) return true;
-        else return false;
+
+        Plugin.Log.Error($"Failed to reload plugin: Recieve {Enum.GetName(response)} from Penumbra");
+        return false;
     }
 
     public bool InstallMods(string downloadPath)
@@ -165,6 +168,8 @@ public sealed class PenumbraService
         var response = InstallMod.Invoke(downloadPath);
 
         if (response == Penumbra.Api.Enums.PenumbraApiEc.Success) return true;
-        else return false;
+
+        Plugin.Log.Error($"Failed to install plugin: Recieve {Enum.GetName(response)} from Penumbra");
+        return false;
     }
 }
