@@ -36,6 +36,8 @@ public sealed class DalamudService
             var pluginManagerType = assembly.DefinedTypes
                 .FirstOrDefault(t => t.FullName == "Dalamud.Plugin.Internal.PluginManager");
 
+            Plugin.Log.Debug($"[DalamudService] States: DalamudService ({serviceType != null}), ConfigType ({configType != null}), PluginMasterType ({pluginManagerType != null})");
+
             if (serviceType == null || configType == null || pluginManagerType == null)
                 return;
 
@@ -55,6 +57,8 @@ public sealed class DalamudService
             _installPluginMethod = pluginManagerType.GetMethod("InstallPluginAsync", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 
             _availablePluginsProperty = pluginManagerType.GetProperty("AvailablePlugins", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+
+            Plugin.Log.Debug($"[DalamudService] Fetched fields from Dalamud: DalamudConfig ({_dalamudConfig != null}), SaveConfig ({_configSaveMethod != null}), PluginManager ({_pluginManager != null}), InstallPlugin ({_installPluginMethod != null}), Awailable ({_availablePluginsProperty != null})");
         }
         catch
         {
@@ -85,12 +89,16 @@ public sealed class DalamudService
             if (urlProperty == null || enabledProperty == null)
                 return false;
 
+            Plugin.Log.Debug($"Checking repo: {repoUrl}");
+
             var exists = repoList.Cast<object>()
                 .Any(repo =>
                 {
                     var url = urlProperty.GetValue(repo) as string;
                     return string.Equals(url, repoUrl, StringComparison.OrdinalIgnoreCase);
                 });
+
+            Plugin.Log.Debug($"Repo exists: {exists}");
 
             if (exists)
                 return true;
@@ -105,6 +113,8 @@ public sealed class DalamudService
             repoList.Add(repoEntry);
 
             _configSaveMethod?.Invoke(_dalamudConfig, null);
+
+            Plugin.Log.Debug($"Repo added: {repoUrl}");
 
             return true;
         }
@@ -269,6 +279,12 @@ public sealed class DalamudService
         catch
         {
             return false;
+        }
+        finally
+        {
+            Plugin.Log.Debug($"EnsurePluginInstalledAsync: {internalName}");
+            Plugin.Log.Debug($"Installed: {IsPluginInstalled(internalName)}");
+            Plugin.Log.Debug($"Manifest exists: {FindPluginManifest(internalName) != null}");
         }
     }
 }
