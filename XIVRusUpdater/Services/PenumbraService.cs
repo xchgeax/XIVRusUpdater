@@ -1,5 +1,6 @@
 using Dalamud.Plugin;
 using Dalamud.Plugin.Ipc.Exceptions;
+using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
 using Penumbra.Api.Enums;
 using Penumbra.Api.Helpers;
 using Penumbra.Api.IpcSubscribers;
@@ -27,6 +28,10 @@ public sealed class PenumbraService
     private Penumbra.Api.IpcSubscribers.GetModDirectory GetDirectory { get; } = null!;
     private EventSubscriber Init { get; } = null!;
     private Penumbra.Api.IpcSubscribers.GetCollections GetCollections { get; } = null!;
+
+    private const string InternalName = "Penumbra";
+    private const string RepoUrl =
+        "https://raw.githubusercontent.com/xivdev/Penumbra/master/repo.json";
 
     public PenumbraService(IDalamudPluginInterface @interface)
     {
@@ -61,6 +66,16 @@ public sealed class PenumbraService
         Plugin.Log.Debug("Penumbra initialized... Perform checks");
         _ = CheckAndDisableIfNeeded();
         _ = Plugin.networkService.CheckForUpdates();
+    }
+
+    public async Task<bool> EnsureInstalledAsync()
+    {
+        return await Plugin.dalamud.EnsurePluginInstalledAsync(InternalName, RepoUrl);
+    }
+
+    public bool IsInstalled()
+    {
+        return Plugin.PluginInterface.InstalledPlugins.Any(p => p.InternalName.Equals(InternalName, StringComparison.OrdinalIgnoreCase));
     }
 
     public async Task CheckAndDisableIfNeeded()

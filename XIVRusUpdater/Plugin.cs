@@ -28,10 +28,11 @@ public sealed class Plugin : IDalamudPlugin
     
     internal static PenumbraService PenumbraApi { get; private set; } = null!;
     internal static NetworkService networkService { get; private set; } = null!;
+    internal static DalamudService dalamud { get; private set; } = null!;
     internal static UpdaterState State { get; private set; } = null!;
 
     private const string CommandName = "/xivrus";
-
+    
     public Configuration Configuration { get; init; }
     private DateTime nextRefresh;
 
@@ -48,7 +49,8 @@ public sealed class Plugin : IDalamudPlugin
         PenumbraApi = new PenumbraService(PluginInterface);
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         State = new UpdaterState();
-        InitLocalization();
+        dalamud = new DalamudService();
+        Initialization();
         
         Framework.Update += OnUpdate;
         
@@ -75,13 +77,17 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.LanguageChanged += OnLanguageChanged;
     }
 
+    public async void Initialization()
+    {
+        InitLocalization();
+        await PenumbraApi.EnsureInstalledAsync();
+    }
+
     public void InitLocalization()
     {
         var lang = PluginInterface.UiLanguage;
 
-        var path = Path.Combine(
-            PluginInterface.AssemblyLocation.Directory!.FullName,
-            $"lang/{lang}.json");
+        var path = Path.Combine(PluginInterface.AssemblyLocation.Directory!.FullName, $"lang/{lang}.json");
 
         if (!File.Exists(path))
         {
