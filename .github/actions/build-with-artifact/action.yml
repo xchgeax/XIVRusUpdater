@@ -21,7 +21,7 @@ runs:
     - name: Build Solution
       shell: pwsh
       run: |
-        $version = "${{ inputs.version }}" -replace 'testing_', ''
+        $version = "${{ inputs.version }}" -replace '^v', '' -replace '-testing$', ''
 
         if ([string]::IsNullOrWhiteSpace($version)) {
           dotnet build --no-restore --nologo --configuration ${{ inputs.configuration }}
@@ -49,7 +49,7 @@ runs:
       shell: pwsh
       run: |
         Compress-Archive `
-          -Path "${{ inputs.project }}/bin/${{ inputs.configuration }}/*" `
+          -Path "${{ inputs.project }}/bin/x64/${{ inputs.configuration }}/*" `
           -DestinationPath "${{ inputs.project }}.zip"
 
     - name: Upload Artifact
