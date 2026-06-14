@@ -5,13 +5,12 @@ using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
-using FFXIVClientStructs.FFXIV.Client.Game.Event;
-using FFXIVClientStructs.FFXIV.Client.System.Framework;
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using XIVRusUpdater.Services;
 using XIVRusUpdater.Utils.States;
 using XIVRusUpdater.Windows;
@@ -28,12 +27,13 @@ public sealed class Plugin : IDalamudPlugin
     
     internal static PenumbraService PenumbraApi { get; private set; } = null!;
     internal static NetworkService networkService { get; private set; } = null!;
+    internal static DalamudService dalamud { get; private set; } = null!;
     internal static UpdaterState State { get; private set; } = null!;
 
     private const string CommandName = "/xivrus";
-
+    
     public Configuration Configuration { get; init; }
-    private DateTime nextRefresh;
+    private DateTime nextRefresh = DateTime.MinValue;
 
 
     public readonly WindowSystem WindowSystem = new("XIV Rus Updater");
@@ -44,11 +44,12 @@ public sealed class Plugin : IDalamudPlugin
 
     public Plugin()
     {
-        networkService = new NetworkService(this);
-        PenumbraApi = new PenumbraService(PluginInterface);
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         State = new UpdaterState();
-        InitLocalization();
+        networkService = new NetworkService(this);
+        PenumbraApi = new PenumbraService(PluginInterface);
+        dalamud = new DalamudService();
+        _ = Task.Run(Initialization);
         
         Framework.Update += OnUpdate;
         
@@ -75,13 +76,17 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.LanguageChanged += OnLanguageChanged;
     }
 
+    public async Task Initialization()
+    {
+        InitLocalization();
+        await PenumbraApi.EnsureInstalledAsync();
+    }
+
     public void InitLocalization()
     {
         var lang = PluginInterface.UiLanguage;
 
-        var path = Path.Combine(
-            PluginInterface.AssemblyLocation.Directory!.FullName,
-            $"lang/{lang}.json");
+        var path = Path.Combine(PluginInterface.AssemblyLocation.Directory!.FullName, $"lang/{lang}.json");
 
         if (!File.Exists(path))
         {
@@ -123,8 +128,9 @@ public sealed class Plugin : IDalamudPlugin
         if (DateTime.Now > nextRefresh)
         {
             nextRefresh = DateTime.Now.AddMinutes(Configuration.UpdateCheckIntervalMinutes);
+            Plugin.Log.Information($"Perform timed update... Next update: {nextRefresh.ToString()}");
 
-            _ = networkService.RefreshAsync();
+            _ = networkService.CheckForUpdates();
         }
 
         DownloadWindow.IsOpen = State.Download.IsDownloading;
