@@ -1,14 +1,12 @@
-name: Release
+name: Testing Release
 
 on:
   push:
     tags:
-      - 'v*'
-    tags-ignore:
       - 'v*-testing'
 
 jobs:
-  release:
+  testing-release:
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -17,11 +15,13 @@ jobs:
       - name: Prepare Environment
         uses: ./.github/actions/prepare-environment
         with:
+          dalamud-distrib: stg/
           project: XIVRusUpdater
 
       - name: Build and Upload Artifact
         uses: ./.github/actions/build-with-artifact
         with:
+          configuration: Debug
           project: XIVRusUpdater
           version: ${{ github.ref_name }}
 
@@ -31,7 +31,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           project: XIVRusUpdater
           version: ${{ github.ref_name }}
-          prerelease: false
+          prerelease: true
 
       - name: Update repo.json
         uses: ./.github/actions/update-repo
@@ -39,4 +39,4 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           project: XIVRusUpdater
           version: ${{ github.ref_name }}
-          testing: false
+          testing: true

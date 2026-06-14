@@ -1,0 +1,61 @@
+name: 'Build and Upload Artifact'
+description: 'Build the checked out branch and upload the resulting artifact, including a zipped version.'
+inputs:
+  configuration:
+    description: 'Build configuration: Release or Debug. Default is Release.'
+    required: false
+    type: string
+    default: 'Release'
+  project:
+    description: 'The main project to be built and packaged.'
+    type: string
+    required: true
+  version:
+    description: 'The version written to the assembly. Leave empty to use the version from the project file.'
+    type: string
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: Build Solution
+      shell: pwsh
+      run: |
+        $version = "${{ inputs.version }}" -replace 'testing_', ''
+
+        if ([string]::IsNullOrWhiteSpace($version)) {
+          dotnet build --no-restore --nologo --configuration ${{ inputs.configuration }}
+        }
+        else {
+          dotnet build --no-restore --nologo --configuration ${{ inputs.configuration }} `
+            /p:Version=$version `
+            /p:FileVersion=$version `
+            /p:AssemblyVersion=$version
+        }
+
+    - name: Update Plugin JSON
+      shell: pwsh
+      run: |
+        $version = "${{ inputs.version }}"  -replace '^v', '' -replace '-testing$', ''
+        if (![string]::IsNullOrWhiteSpace($version)) {
+          $path = "./${{ inputs.project }}/bin/${{ inputs.configuration }}/${{ inputs.project }}.json"
+          $json = Get-Content -Raw $path | ConvertFrom-Json
+          $json.AssemblyVersion = $version
+          $content = $json | ConvertTo-Json
+          Set-Content -Path $path -Value $content
+        }
+
+    - name: Create Archive
+      shell: pwsh
+      run: |
+        Compress-Archive `
+          -Path "${{ inputs.project }}/bin/${{ inputs.configuration }}/*" `
+          -DestinationPath "${{ inputs.project }}.zip"
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.project }}
+        path: ./${{ inputs.project }}.zip
+        if-no-files-found: error
+        retention-days: 7
