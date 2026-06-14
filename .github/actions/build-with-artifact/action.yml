@@ -38,7 +38,7 @@ runs:
       run: |
         $version = "${{ inputs.version }}"  -replace '^v', '' -replace '-testing$', ''
         if (![string]::IsNullOrWhiteSpace($version)) {
-          $path = "./${{ inputs.project }}/bin/${{ inputs.configuration }}/${{ inputs.project }}.json"
+          $path = "./${{ inputs.project }}/bin/x64/${{ inputs.configuration }}/${{ inputs.project }}.json"
           $json = Get-Content -Raw $path | ConvertFrom-Json
           $json.AssemblyVersion = $version
           $content = $json | ConvertTo-Json

@@ -4,10 +4,10 @@ on:
   push:
     tags:
       - 'v*'
-      - '!v*-testing'
 
 jobs:
   release:
+    if: ${{ !contains(github.ref_name, '-testing') }}
     runs-on: windows-latest
     steps:
       - name: Checkout
