@@ -65,7 +65,6 @@ public sealed class PenumbraService
     {
         Plugin.Log.Debug("Penumbra initialized... Perform checks");
         _ = CheckAndDisableIfNeeded();
-        _ = Plugin.networkService.CheckForUpdates();
     }
 
     public async Task<bool> EnsureInstalledAsync()
@@ -80,10 +79,12 @@ public sealed class PenumbraService
 
     public async Task CheckAndDisableIfNeeded()
     {
-        var remoteVersion = await Plugin.networkService.GetBranchStatus();
+        var remoteVersion = Plugin.State.LastRemoteStatus;
         if (remoteVersion is null) return;
 
         var localVersion = Plugin.CurrentGameVersion;
+
+        Plugin.Log.Debug($"Remote Game: {remoteVersion.GameVersion}. Local: {localVersion}");
 
         if (remoteVersion.GameVersion == localVersion)
             return;
