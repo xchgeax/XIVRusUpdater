@@ -57,6 +57,7 @@ public sealed class PenumbraService
 
     private void OnPenumbraInitialized()
     {
+        Plugin.Log.Debug("Penumbra initialized... Perform checks");
         _ = CheckAndDisableIfNeeded();
         _ = Plugin.networkService.CheckForUpdates();
     }
@@ -71,6 +72,7 @@ public sealed class PenumbraService
         if (remoteVersion.GameVersion == localVersion)
             return;
 
+        Plugin.Log.Information("Disabling XIV Rus due GameVersion missmatch");
         Plugin.State.mod.Enabled = false;
     }
 

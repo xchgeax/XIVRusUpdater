@@ -35,15 +35,13 @@ public class NetworkService
             Timeout = TimeSpan.FromSeconds(10)
         };
 
-        client.DefaultRequestHeaders.UserAgent.ParseAdd("XIVRusUpdater/1.0");
+        client.DefaultRequestHeaders.UserAgent.ParseAdd($"XIVRusUpdater/{Plugin.PluginInterface.Manifest.AssemblyVersion}");
 
         return client;
     }
 
-    public string CurrentBranch()
-    {
-        return plugin.Configuration.Channel == UpdateChannel.Beta ? $"{Plugin.State.mod.API_BASE}/branches/test" : $"{Plugin.State.mod.API_BASE}/branches/release";
-    }
+    public string CurrentBranch() => plugin.Configuration.Channel == UpdateChannel.Beta ? $"{Plugin.State.mod.API_BASE}/branches/test" 
+        : $"{Plugin.State.mod.API_BASE}/branches/release";
 
     public async Task<XIVStatus?> GetBranchStatus()
     {
@@ -55,6 +53,8 @@ public class NetworkService
 
         var status = JsonConvert.DeserializeObject<XIVStatus>(await responseMessage.Content.ReadAsStringAsync());
 
+        Plugin.State.LastChangelog = status.Changelog;
+        Plugin.Log.Information($"Fetched latest info. Game Version: {status.GameVersion}, XIV Rus Version: {status.RusVersion}");
         return status;
     }
 
@@ -69,15 +69,14 @@ public class NetworkService
     public async Task<string?> GetLastRemoteVersionAsync()
     {
         var response = await GetBranchStatus();
-        if (response == default(XIVStatus)) return null;
-
-        Plugin.State.LastChangelog = response.Changelog;
+        if (response == null) return null;
 
         return response.RusVersion;
     }
 
     public async Task CheckForUpdates()
     {
+        Plugin.Log.Information("Update Check started");
         plugin.Configuration.LastUpdateCheck = DateTime.Now;
 
         await RefreshAsync();
@@ -107,8 +106,8 @@ public class NetworkService
         if (downloadSource == null)
             return;
 
-        Plugin.Log.Debug($"Download URL: {downloadSource.Url}");
-        
+        Plugin.Log.Information($"Starting download {downloadSource.FileName} from {downloadSource.Url}...");
+
         var tempFile = Path.Combine(Plugin.PenumbraApi.GetDefaultDirectory(), downloadSource.FileName);
 
         var success = await DownloadModAsync(downloadSource.Url, tempFile);
@@ -116,7 +115,7 @@ public class NetworkService
         if (!success)
             return;
 
-        plugin.Configuration.LastSuccessfulUpdate = DateTime.Now;
+        Plugin.Log.Info($"Downloading {downloadSource.FileName} successful complete");
 
         if (!plugin.Configuration.AutoInstallUpdates)
             return;
@@ -131,6 +130,7 @@ public class NetworkService
         Plugin.PenumbraApi.DeleteMods(Plugin.State.mod.modName);
 
         bool isInstall = Plugin.PenumbraApi.InstallMods(filePath);
+        Plugin.Log.Information($"XIV Rus has been queued for installation in Penumbra. Status: {isInstall}");
     }
 
     public async Task RefreshAsync()
@@ -191,6 +191,7 @@ public class NetworkService
 
                 fileName = fileName?.Trim('"') ?? string.Empty;
 
+                Plugin.Log.Debug($"Download link ({source}) checked. Speed: {speedMBps} MB/s");
                 return (Url: source, FileName: fileName, SpeedMbps: speedMBps, Success: true);
             }
             catch
@@ -205,6 +206,8 @@ public class NetworkService
 
         if (!bestSource.Success)
             return null;
+
+        Plugin.Log.Debug($"Best download source picked. Url: {bestSource.Url}, Speed: {bestSource.SpeedMbps}");
 
         return new DownloadSourceInfo
         {
@@ -248,6 +251,7 @@ public class NetworkService
         catch (Exception ex)
         {
             state.Error = ex.Message;
+            Plugin.Log.Error($"Download Error: {ex.Message}");
             return false;
         }
         finally
