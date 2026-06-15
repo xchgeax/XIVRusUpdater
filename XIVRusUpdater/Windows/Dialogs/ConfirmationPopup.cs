@@ -29,10 +29,20 @@ public sealed class ConfirmationPopup
 
     public void Draw()
     {
-        if (!ImGui.BeginPopupModal(popupId))
+        if (!ImGui.BeginPopupModal(popupId, ImGuiWindowFlags.AlwaysAutoResize))
             return;
 
-        ImGui.Text(Translations.ConfirmationQuestion);
+        ImGui.Text(Translations.RestartWarning);
+
+        ImGui.TextWrapped(Translations.ConfirmationQuestion);
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        ImGui.TextWrapped(Translations.RestartQuestion);
+
+        ImGui.Spacing();
 
         if (ImGui.Button(Translations.ConfirmationConfirm))
         {

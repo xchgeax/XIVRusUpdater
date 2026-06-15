@@ -36,6 +36,6 @@ public class DownloadWindow : Window
 
         ImGui.TextWrapped(string.Format(Translations.DownloadSource, download.CurrentSource));
 
-        ImGui.Text(string.Format(Translations.DownloadSpeed, download.SpeedMBps));
+        ImGui.Text(string.Format(Translations.DownloadSpeed, Math.Round(download.SpeedMBps, 2)));
     }
 }
