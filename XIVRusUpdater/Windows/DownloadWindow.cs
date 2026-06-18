@@ -32,9 +32,13 @@ public class DownloadWindow : Window
 
         ImGui.Spacing();
 
-        ImGui.Text(string.Format(Translations.DownloadTitle, download.DownloadedBytes / 1024f / 1024f, download.TotalBytes / 1024f / 1024f));
+        ImGui.Text(string.Format(Translations.DownloadProgress, 
+            Math.Round(download.DownloadedBytes / 1024f / 1024f), 
+            Math.Round(download.TotalBytes / 1024f / 1024f)));
 
-        ImGui.TextWrapped(string.Format(Translations.DownloadSource, download.CurrentSource));
+        ImGui.Text(Translations.DownloadSource);
+        ImGui.SameLine();
+        ImGui.TextWrapped(download.CurrentSource);
 
         ImGui.Text(string.Format(Translations.DownloadSpeed, Math.Round(download.SpeedMBps, 2)));
     }
