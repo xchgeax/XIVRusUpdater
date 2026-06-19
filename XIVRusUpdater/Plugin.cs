@@ -11,6 +11,7 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using XIVRusUpdater.Hooks;
 using XIVRusUpdater.Services;
 using XIVRusUpdater.Utils.States;
 using XIVRusUpdater.Windows;
@@ -24,7 +25,10 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
     [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
-    
+    [PluginService] internal static IGameInteropProvider interopProvider { get; private set; } = null!;
+
+    public static EXDHooks EXDGetters;
+
     internal static PenumbraService PenumbraApi { get; private set; } = null!;
     internal static NetworkService networkService { get; private set; } = null!;
     internal static DalamudService dalamud { get; private set; } = null!;
@@ -44,6 +48,7 @@ public sealed class Plugin : IDalamudPlugin
 
     public Plugin()
     {
+        EXDGetters = new EXDHooks();
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         State = new UpdaterState();
         networkService = new NetworkService(this);
@@ -110,6 +115,7 @@ public sealed class Plugin : IDalamudPlugin
 
         WindowSystem.RemoveAllWindows();
 
+        EXDGetters.Dispose();
         ConfigWindow.Dispose();
         MainWindow.Dispose();
         DownloadWindow.Dispose();
