@@ -54,8 +54,8 @@ public class NetworkService
         var status = JsonConvert.DeserializeObject<XIVStatus>(await responseMessage.Content.ReadAsStringAsync());
 
         Plugin.State.LastRemoteStatus = status;
-        Plugin.State.LastChangelog = status.Changelog;
-        Plugin.Log.Information($"Fetched latest info. Game Version: {status.GameVersion}, XIV Rus Version: {status.RusVersion}");
+        Plugin.State.LastChangelog = status?.Changelog;
+        Plugin.Log.Information($"Fetched latest info. Game Version: {status?.GameVersion}, XIV Rus Version: {status?.RusVersion}");
         return status;
     }
 

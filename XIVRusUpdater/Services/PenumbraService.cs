@@ -79,6 +79,7 @@ public sealed class PenumbraService
 
     public async Task CheckAndDisableIfNeeded()
     {
+        var mod = Plugin.State.mod;
         var remoteVersion = Plugin.State.LastRemoteStatus;
         if (remoteVersion is null) return;
 
@@ -87,10 +88,13 @@ public sealed class PenumbraService
         Plugin.Log.Debug($"Remote Game: {remoteVersion.GameVersion}. Local: {localVersion}");
 
         if (remoteVersion.GameVersion == localVersion)
-            return;
+        {
+            if (!mod.Enabled) mod.Enabled = true;
+            return; 
+        }
 
         Plugin.Log.Information("Disabling XIV Rus due GameVersion missmatch");
-        Plugin.State.mod.Enabled = false;
+        mod.Enabled = false;
     }
 
     public bool IsEnabled() => GetEnableStatus.Invoke();
