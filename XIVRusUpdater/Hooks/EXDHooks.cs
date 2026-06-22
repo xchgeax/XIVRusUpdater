@@ -1,68 +1,54 @@
 using Dalamud.Hooking;
+using FFXIVClientStructs.FFXIV.Client.System.String;
+using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using FFXIVClientStructs.FFXIV.Common.Component.Excel;
 using FFXIVClientStructs.FFXIV.Component.Excel;
 using FFXIVClientStructs.FFXIV.Component.Exd;
+using InteropGenerator.Runtime;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
+using static FFXIVClientStructs.FFXIV.Client.UI.Misc.RaptureTextModule;
 using static FFXIVClientStructs.FFXIV.Component.Completion.CompletionModule;
+using static FFXIVClientStructs.FFXIV.Component.Excel.ExcelRow.Delegates;
 
 namespace XIVRusUpdater.Hooks;
 
 public unsafe class EXDHooks : IDisposable
 {
-    private readonly Hook<GetRowBySheetAndRowIdDelegate> _h1;
-    private readonly Hook<GetRowBySheetAndRowIndexDelegate> _h2;
-    private readonly Hook<GetRowBySheetIndexAndRowIdDelegate> _h3;
-    private readonly Hook<GetRowBySheetIndexAndRowIndexDelegate> _h4;
+    private readonly Hook<GetRowByIdDelegate> _hGetRowById;
+    private readonly Hook<GetRowByIndexDelegate> _hGetRowByIndex;
 
-    private List<string> ignoreFiles = ["MapType", "TextCommand", "BGM", "TerritoryType", "TerritoryTypeTransient", "TomestonesItem", "Action", "ClassJob", "ClassJobCategory", "Battalion", "Permission", "ActionCostType", "Trait", "GeneralAction"];
-
-    private delegate ExcelRow* GetRowBySheetAndRowIdDelegate(
-        ExdModule* exd, ExcelSheet* sheet, uint rowId);
-
-    private delegate ExcelRow* GetRowBySheetAndRowIndexDelegate(
-        ExdModule* exd, ExcelSheet* sheet, uint rowIndex);
-
-    private delegate ExcelRow* GetRowBySheetIndexAndRowIdDelegate(
-        ExdModule* exd, uint sheetIndex, uint rowId);
-
-    private delegate ExcelRow* GetRowBySheetIndexAndRowIndexDelegate(
-        ExdModule* exd, uint sheetIndex, uint rowIndex);
+    private delegate IExcelRowWrapper* GetRowByIndexDelegate(ExcelSheet* sheet, uint rowIndex, ExcelRowDescriptor* descriptor);
+    private delegate IExcelRowWrapper* GetRowByIdDelegate(ExcelSheet* sheet, uint rowId, uint* outErrorCode = null);
 
     public EXDHooks()
     {
         var provider = Plugin.interopProvider;
 
-        _h1 = provider.HookFromAddress<GetRowBySheetAndRowIdDelegate>(
-            ExdModule.MemberFunctionPointers.GetRowBySheetAndRowId,
-            Detour_GetRowBySheetAndRowId);
+        _hGetRowById = provider.HookFromAddress<GetRowByIdDelegate>(
+            ExcelSheet.MemberFunctionPointers.GetRowById,
+            Detour_GetRowById
+            );
 
-        _h2 = provider.HookFromAddress<GetRowBySheetAndRowIndexDelegate>(
-            ExdModule.MemberFunctionPointers.GetRowBySheetAndRowIndex,
-            Detour_GetRowBySheetAndRowIndex);
+        _hGetRowByIndex = provider.HookFromAddress<GetRowByIndexDelegate>(
+            ExcelSheet.MemberFunctionPointers.GetRowByIndex,
+            Detour_GetRowByIndex
+        );
 
-        _h3 = provider.HookFromAddress<GetRowBySheetIndexAndRowIdDelegate>(
-            ExdModule.MemberFunctionPointers.GetRowBySheetIndexAndRowId,
-            Detour_GetRowBySheetIndexAndRowId);
-
-        _h4 = provider.HookFromAddress<GetRowBySheetIndexAndRowIndexDelegate>(
-            ExdModule.MemberFunctionPointers.GetRowBySheetIndexAndRowIndex,
-            Detour_GetRowBySheetIndexAndRowIndex);
-
-        _h1.Enable();
-        _h2.Enable();
-        _h3.Enable();
-        _h4.Enable();
+        _hGetRowById.Enable();
+        _hGetRowByIndex.Enable();
     }
 
     public void Dispose()
     {
-        _h1.Dispose();
-        _h2.Dispose();
-        _h3.Dispose();
-        _h4.Dispose();
+        _hGetRowById.Disable();
+        _hGetRowByIndex.Disable();
+
+        _hGetRowById.Dispose();
+        _hGetRowByIndex.Dispose();
     }
 
     private static string SheetName(ExcelSheet* sheet)
@@ -71,50 +57,28 @@ public unsafe class EXDHooks : IDisposable
     private static void Log(string msg)
         => Plugin.Log.Information(msg);
 
-    private unsafe ExcelRow* Detour_GetRowBySheetAndRowId(
-        ExdModule* exd, ExcelSheet* sheet, uint rowId)
+    private readonly HashSet<(string sheet, uint row)> _seenRows = new();
+
+    private unsafe IExcelRowWrapper* Detour_GetRowByIndex(ExcelSheet* sheet, uint rowIndex, ExcelRowDescriptor* descriptor)
     {
-        var result = _h1.Original(exd, sheet, rowId);
+        var result = _hGetRowByIndex!.Original(sheet, rowIndex, descriptor);
 
-        var sheetName = SheetName(sheet);
+        var key = (sheet->SheetName.ToString(), rowIndex);
 
-        if (!ignoreFiles.Contains(sheetName)) Log($"[EXD] Sheet={sheetName}({sheet->SheetIndex}) RowId={rowId} Result=0x{(nint)result:X}");
+        if (_seenRows.Add(key))
+            Log($"[GetRowByIndex] RowIndex = {rowIndex}, Sheet = {sheet->SheetName}");
 
         return result;
     }
 
-    private unsafe ExcelRow* Detour_GetRowBySheetAndRowIndex(
-        ExdModule* exd, ExcelSheet* sheet, uint rowIndex)
+    private unsafe IExcelRowWrapper* Detour_GetRowById(ExcelSheet* sheet, uint rowId, uint* outErrorCode = null)
     {
-        var result = _h2.Original(exd, sheet, rowIndex);
+        var result = _hGetRowById!.Original(sheet, rowId);
 
-        var sheetName = SheetName(sheet);
+        var key = (sheet->SheetName.ToString(), rowId);
 
-        // if (!ignoreFiles.Contains(sheetName))  Log($"[EXD] Sheet={sheetName}({sheet->SheetIndex}) RowIndex={rowIndex} Result=0x{(nint)result:X}");
-
-        return result;
-    }
-
-    private unsafe ExcelRow* Detour_GetRowBySheetIndexAndRowId(
-        ExdModule* exd, uint sheetIndex, uint rowId)
-    {
-        var result = _h3.Original(exd, sheetIndex, rowId);
-
-        var sheetName = exd->GetSheetByIndex(sheetIndex)->SheetName;
-
-        // if (!ignoreFiles.Contains(sheetName.ToString()))  Log($"[EXD] SheetIndex={sheetIndex} ({sheetName}) RowId={rowId} Result=0x{(nint)result:X}");
-
-        return result;
-    }
-
-    private unsafe ExcelRow* Detour_GetRowBySheetIndexAndRowIndex(
-        ExdModule* exd, uint sheetIndex, uint rowIndex)
-    {
-        var result = _h4.Original(exd, sheetIndex, rowIndex);
-
-        var sheetName = exd->GetSheetByIndex(sheetIndex)->SheetName;
-
-        // if (!ignoreFiles.Contains(sheetName.ToString())) Log($"[EXD] SheetIndex={sheetIndex} ({sheetName}) RowIndex={rowIndex} Result=0x{(nint)result:X}");
+        if (_seenRows.Add(key))
+            Log($"[GetRowById] RowId = {rowId}, Sheet = {sheet->SheetName}");
 
         return result;
     }
