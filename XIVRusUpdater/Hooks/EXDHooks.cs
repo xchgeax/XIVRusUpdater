@@ -65,8 +65,17 @@ public unsafe class EXDHooks : IDisposable
 
         var key = (sheet->SheetName.ToString(), rowIndex);
 
+        var span = sheet->ColumnDefinitionSpan;
+        List<string> types = new List<string>(); 
+        for(int i = 0; i < span.Length; ++i)
+        {
+            var columnType = Enum.GetName((ExcelColumnType)span[i].Type);
+            if(columnType != null)
+                types.Add(columnType);
+        }
+
         if (_seenRows.Add(key))
-            Log($"[GetRowByIndex] RowIndex = {rowIndex}, Sheet = {sheet->SheetName}");
+            Log($"[GetRowByIndex] RowIndex = {rowIndex}, Sheet = {sheet->SheetName}, Columns = {string.Join(",", types)}");
 
         return result;
     }
@@ -76,9 +85,17 @@ public unsafe class EXDHooks : IDisposable
         var result = _hGetRowById!.Original(sheet, rowId);
 
         var key = (sheet->SheetName.ToString(), rowId);
+        var span = sheet->ColumnDefinitionSpan;
+        List<string> types = new List<string>();
+        for (int i = 0; i < span.Length; ++i)
+        {
+            var columnType = Enum.GetName((ExcelColumnType)span[i].Type);
+            if (columnType != null)
+                types.Add(columnType);
+        }
 
         if (_seenRows.Add(key))
-            Log($"[GetRowById] RowId = {rowId}, Sheet = {sheet->SheetName}");
+            Log($"[GetRowById] RowId = {rowId}, Sheet = {sheet->SheetName}, Columns = {string.Join(",", types)}");
 
         return result;
     }
