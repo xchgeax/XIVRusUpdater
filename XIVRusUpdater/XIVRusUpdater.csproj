@@ -15,11 +15,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Penumbra.Api\Penumbra.Api.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="CheapLoc" Version="1.1.8" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Penumbra.Api" Version="5.15.1" />
   </ItemGroup>
 </Project>
