@@ -1,18 +1,12 @@
 using Dalamud.Hooking;
-using FFXIVClientStructs.FFXIV.Client.System.String;
-using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using FFXIVClientStructs.FFXIV.Common.Component.Excel;
 using FFXIVClientStructs.FFXIV.Component.Excel;
-using FFXIVClientStructs.FFXIV.Component.Exd;
-using InteropGenerator.Runtime;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.AccessControl;
 using System.Text;
-using static FFXIVClientStructs.FFXIV.Client.UI.Misc.RaptureTextModule;
-using static FFXIVClientStructs.FFXIV.Component.Completion.CompletionModule;
-using static FFXIVClientStructs.FFXIV.Component.Excel.ExcelRow.Delegates;
 
 namespace XIVRusUpdater.Hooks;
 
@@ -51,52 +45,67 @@ public unsafe class EXDHooks : IDisposable
         _hGetRowByIndex.Dispose();
     }
 
-    private static string SheetName(ExcelSheet* sheet)
-        => sheet == null ? "null" : sheet->SheetName.ToString();
-
     private static void Log(string msg)
         => Plugin.Log.Information(msg);
 
-    private readonly HashSet<(string sheet, uint row)> _seenRows = new();
+    private readonly HashSet<(string sheet, uint row)> _seenById = new();
+    private readonly HashSet<(string sheet, uint row)> _seenByIndex = new();
 
-    private unsafe IExcelRowWrapper* Detour_GetRowByIndex(ExcelSheet* sheet, uint rowIndex, ExcelRowDescriptor* descriptor)
+    public string GetSeeningSheets(string filter)
     {
-        var result = _hGetRowByIndex!.Original(sheet, rowIndex, descriptor);
+        var list = _seenById.Select(x => x.sheet);
+        list.Union(_seenByIndex.Select(x => x.sheet));
+        return string.Join(",", list.Where(elem => elem.Contains(filter, StringComparison.OrdinalIgnoreCase)).Distinct() );
+    }
 
-        var key = (sheet->SheetName.ToString(), rowIndex);
+    private unsafe IExcelRowWrapper* Detour_GetRowById(
+    ExcelSheet* sheet, uint rowId, uint* outErrorCode)
+    {
+        var result = _hGetRowById!.Original(sheet, rowId, outErrorCode);
+
+        var key = (sheet->SheetName.ToString(), rowId);
+        
+        if (!_seenById.Add(key)) return result;
 
         var span = sheet->ColumnDefinitionSpan;
-        List<string> types = new List<string>(); 
-        for(int i = 0; i < span.Length; ++i)
+        var sb = new StringBuilder();
+        for (int i = 0; i < span.Length; i++)
         {
-            var columnType = Enum.GetName((ExcelColumnType)span[i].Type);
-            if(columnType != null)
-                types.Add(columnType);
+            if (i > 0) sb.Append(',');
+            var col = span[i];
+            sb.Append(Enum.GetName((ExcelColumnType)col.Type) ?? col.Type.ToString());
+            sb.Append('|').Append(col.Index);
+            sb.Append('|').Append(col.Offset);
         }
 
-        if (_seenRows.Add(key))
-            Log($"[GetRowByIndex] RowIndex = {rowIndex}, Sheet = {sheet->SheetName}, Columns = {string.Join(",", types)}");
-
+        if (key.Item1.Contains("quest", StringComparison.OrdinalIgnoreCase))
+            Log($"[GetRowById] RowId={rowId} Sheet={sheet->SheetName} Columns={sb}");
         return result;
     }
 
-    private unsafe IExcelRowWrapper* Detour_GetRowById(ExcelSheet* sheet, uint rowId, uint* outErrorCode = null)
+    private unsafe IExcelRowWrapper* Detour_GetRowByIndex(
+        ExcelSheet* sheet, uint rowIndex, ExcelRowDescriptor* descriptor)
     {
-        var result = _hGetRowById!.Original(sheet, rowId);
+        var result = _hGetRowByIndex!.Original(sheet, rowIndex, descriptor);
+        
+        if (sheet == null) return result;
 
-        var key = (sheet->SheetName.ToString(), rowId);
+        var key = (sheet->SheetName.ToString(), rowIndex);
+        if (!_seenByIndex.Add(key)) return result;
+
         var span = sheet->ColumnDefinitionSpan;
-        List<string> types = new List<string>();
-        for (int i = 0; i < span.Length; ++i)
+        var sb = new StringBuilder();
+        for (int i = 0; i < span.Length; i++)
         {
-            var columnType = Enum.GetName((ExcelColumnType)span[i].Type);
-            if (columnType != null)
-                types.Add(columnType);
+            if (i > 0) sb.Append(',');
+            var col = span[i];
+            sb.Append(Enum.GetName((ExcelColumnType)col.Type) ?? col.Type.ToString());
+            sb.Append('|').Append(col.Index);
+            sb.Append('|').Append(col.Offset);
         }
 
-        if (_seenRows.Add(key))
-            Log($"[GetRowById] RowId = {rowId}, Sheet = {sheet->SheetName}, Columns = {string.Join(",", types)}");
-
+        if (key.Item1.Contains("quest", StringComparison.OrdinalIgnoreCase))
+            Log($"[GetRowByIndex] RowIndex={rowIndex} Sheet={sheet->SheetName} Columns={sb}");
         return result;
     }
 }

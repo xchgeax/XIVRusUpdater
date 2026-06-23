@@ -11,8 +11,8 @@ using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using XIVRusUpdater;
 using XIVRusUpdater.Models;
-using XIVRusUpdater.Utils;
-using static XIVRusUpdater.Utils.HttpClientProgressExtensions;
+using XIVRusUpdater.Utils.Extentions;
+using static XIVRusUpdater.Utils.Extentions.HttpClientProgressExtensions;
 
 namespace XIVRusUpdater.Services;
 
