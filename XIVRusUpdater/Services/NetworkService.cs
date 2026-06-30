@@ -122,8 +122,6 @@ public class NetworkService
             return;
 
         InstallDownloadedVersionAsync(tempFile);
-
-        Plugin.State.ShowChangelog = true;
     }
 
     public void InstallDownloadedVersionAsync(string filePath)
@@ -140,7 +138,7 @@ public class NetworkService
         {
             Plugin.State.Availability = await GetStatusAsync();
 
-            Plugin.State.PenumbraEnabled = Plugin.PenumbraApi.IsEnabled();
+            Plugin.State.PenumbraEnabled = Plugin.PenumbraApi.IsPenumbraEnabled();
             Plugin.State.ModInstalled = Plugin.PenumbraApi.IsModInstalled(Plugin.State.mod.modName);
     
             var remote = await GetLastRemoteVersionAsync();

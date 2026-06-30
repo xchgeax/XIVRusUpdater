@@ -33,7 +33,6 @@ public sealed class Plugin : IDalamudPlugin
 
     internal static PenumbraService PenumbraApi { get; private set; } = null!;
     internal static NetworkService networkService { get; private set; } = null!;
-    internal static DalamudService dalamud { get; private set; } = null!;
     internal static UpdaterState State { get; private set; } = null!;
 
     private const string CommandName = "/xivrus";
@@ -55,7 +54,6 @@ public sealed class Plugin : IDalamudPlugin
         State = new UpdaterState();
         networkService = new NetworkService(this);
         PenumbraApi = new PenumbraService(PluginInterface);
-        dalamud = new DalamudService();
         _ = Task.Run(Initialization);
         
         Framework.Update += OnUpdate;
@@ -86,7 +84,6 @@ public sealed class Plugin : IDalamudPlugin
     public async Task Initialization()
     {
         InitLocalization();
-        await PenumbraApi.EnsureInstalledAsync();
     }
 
     public void InitLocalization()

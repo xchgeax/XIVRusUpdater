@@ -8,7 +8,7 @@ namespace XIVRusUpdater.Utils.States;
 
 public sealed class UpdaterState
 {
-    public IPenumbraMod mod { get; set; } = new IPenumbraMod("XIV Rus", "https://update.xivrus.ru/api");
+    public ITranslationEngine mod { get; set; } = new ITranslationEngine("XIV Rus", "https://update.xivrus.ru/api");
     
     public DownloadState Download { get; set; } = new DownloadState();
 
