@@ -25,19 +25,10 @@ public unsafe class EXDHooks : IDisposable
 
     private readonly List<nint> _translationStrings = new();
 
-    [ThreadStatic]
-    private static ExcelSheet* _lastSheet;
-    [ThreadStatic]
-    private static uint _lastRowId;
-    [ThreadStatic]
-    private static uint _lastRowIndex;
-    [ThreadStatic]
-    private static uint _lastResolvedRowId;
-    [ThreadStatic]
-    private static int _resolveCallCount;
-
+    [ThreadStatic] private static ExcelContext context;
     public EXDHooks()
     {
+        context = new ExcelContext();
         var provider = Plugin.interopProvider;
 
         _hGetRowById = provider.HookFromAddress<GetRowByIdDelegate>(
@@ -83,8 +74,8 @@ public unsafe class EXDHooks : IDisposable
         var result = _hGetRowById!.Original(sheet, rowId, outErrorCode);
         if (sheet != null)
         {
-            _lastSheet = sheet;
-            _lastRowId = rowId;
+            context.sheetName = sheet->SheetName.ToString();
+            context.lastRowId = rowId;
         }
         return result;
     }
@@ -94,8 +85,8 @@ public unsafe class EXDHooks : IDisposable
         var result = _hGetRowByIndex!.Original(sheet, rowIndex, descriptor);
         if (sheet != null)
         {
-            _lastSheet = sheet;
-            _lastRowIndex = rowIndex;
+            context.sheetName = sheet->SheetName.ToString();
+            context.lastRowId = descriptor->RowId;
         }
         return result;
     }
@@ -104,29 +95,36 @@ public unsafe class EXDHooks : IDisposable
     {
         var result = _hResolveIndirection!.Original(columnPtr);
 
-        var sheet = _lastSheet;
-        if (sheet == null) return result;
-
-        var name = sheet->SheetName.ToString();
-        if (name != "Quest") return result;
-
-        if (_lastRowId != _lastResolvedRowId)
+        var name = context.sheetName;
+        
+        if (context.lastRowId != context.lastResolvedRowId)
         {
-            _lastResolvedRowId = _lastRowId;
-            _resolveCallCount = 0;
+            context.lastResolvedRowId = context.lastRowId;
+            context.resolveCallCount = 0;
         }
 
-        _resolveCallCount++;
+        context.resolveCallCount++;
 
-        if (_resolveCallCount == 1)
+        /*
+        if (context.resolveCallCount == 1)
         {
             var str = Marshal.PtrToStringUTF8((nint)result);
             var translated = Utf8String.FromString("FunnyScout, where is 7.5 translation?");
             _translationStrings.Add((nint)translated);
-            Plugin.Log.Information($"[Patch] Quest rowId={_lastRowId} resolveCall={_resolveCallCount} \"{str}\" → patched");
+            Plugin.Log.Information($"[Patch] Quest rowId={context.lastRowId} resolveCall={context.resolveCallCount} \"{str}\" → patched");
             return translated->StringPtr;
         }
+        */
 
         return result;
     }
+}
+
+
+public class ExcelContext()
+{
+    public string? sheetName { get; set; }
+    public uint lastRowId { get; set; }
+    public uint lastResolvedRowId { get; set; }
+    public int resolveCallCount { get; set; }
 }
