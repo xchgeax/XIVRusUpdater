@@ -12,7 +12,7 @@ public sealed class UpdaterState
     
     public DownloadState Download { get; set; } = new DownloadState();
 
-    public XIVStatus? LastRemoteStatus { get; set; }
+    public TranslationManifest? LastRemoteStatus { get; set; }
 
     public NetworkService.AvailabilityStatus Availability { get; set; }
         = NetworkService.AvailabilityStatus.Disabled;

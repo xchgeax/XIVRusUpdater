@@ -43,7 +43,7 @@ public class NetworkService
     public string CurrentBranch() => plugin.Configuration.Channel == UpdateChannel.Beta ? $"{Plugin.State.mod.API_BASE}/branches/test" 
         : $"{Plugin.State.mod.API_BASE}/branches/release";
 
-    public async Task<XIVStatus?> GetBranchStatus()
+    public async Task<TranslationManifest?> GetBranchStatus()
     {
         var branch = CurrentBranch();
 
@@ -51,7 +51,7 @@ public class NetworkService
 
         responseMessage.EnsureSuccessStatusCode();
 
-        var status = JsonConvert.DeserializeObject<XIVStatus>(await responseMessage.Content.ReadAsStringAsync());
+        var status = JsonConvert.DeserializeObject<TranslationManifest>(await responseMessage.Content.ReadAsStringAsync());
 
         Plugin.State.LastRemoteStatus = status;
         Plugin.State.LastChangelog = status?.Changelog;
