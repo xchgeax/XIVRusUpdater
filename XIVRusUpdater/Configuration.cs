@@ -1,5 +1,6 @@
 using Dalamud.Configuration;
 using System;
+using System.Collections.Generic;
 
 namespace XIVRusUpdater;
 
@@ -46,6 +47,21 @@ public class Configuration : IPluginConfiguration
 
     #endregion
 
+    #region Components
+    public Dictionary<string, bool> EnabledComponents { get; set; } = new()
+    {
+        ["enemy_npc"] = true,
+        ["place_names"] = true,
+        ["content_finder"] = true,
+        ["npc_names"] = true,
+        ["actions"] = true,
+        ["achievements"] = true,
+        ["titles"] = true,
+        ["collectibles"] = true,
+        ["emotes"] = true,
+    };
+
+    #endregion
     public void Save()
     {
         Plugin.PluginInterface.SavePluginConfig(this);

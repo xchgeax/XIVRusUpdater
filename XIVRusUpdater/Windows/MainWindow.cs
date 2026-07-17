@@ -47,8 +47,6 @@ public class MainWindow : Window, IDisposable
             MaximumSize = new Vector2(float.MaxValue, float.MaxValue)
         };
 
-        reloadPopup.OnConfirm = Plugin.RestartGame;
-
         this.goatImagePath = goatImagePath;
         this.plugin = plugin;
     }

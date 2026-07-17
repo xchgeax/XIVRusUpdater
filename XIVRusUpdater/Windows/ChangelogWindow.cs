@@ -23,8 +23,6 @@ public sealed class ChangelogWindow : Window, IDisposable
         RespectCloseHotkey = false;
         this.plugin = plugin;
 
-        reloadPopup.OnConfirm = Plugin.RestartGame;
-
         Size = new Vector2(750, 600);
         SizeCondition = ImGuiCond.FirstUseEver;
 

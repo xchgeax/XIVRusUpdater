@@ -6,23 +6,10 @@ using XIVRusUpdater;
 
 namespace XIVRusUpdater.Utils;
 
-public class IPenumbraMod
+public class ITranslationEngine
 {
     public string modName { get; private set; }
     public string API_BASE { get; private set; }
-
-    public bool Enabled
-    {
-        get
-        {
-            return Plugin.PenumbraApi.IsModEnabled(modName);
-        }
-
-        set
-        {
-            Plugin.PenumbraApi.SetModEnabled(modName, value);
-        }
-    }
 
     public DirectoryInfo? ModPath
     {
@@ -40,7 +27,7 @@ public class IPenumbraMod
         }
     }
 
-    public IPenumbraMod(string modName, string api)
+    public ITranslationEngine(string modName, string api)
     {
         this.modName = modName;
         API_BASE = api;
