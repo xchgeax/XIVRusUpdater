@@ -55,7 +55,6 @@ public class NetworkService
 
         Plugin.State.LastRemoteStatus = status;
         Plugin.State.LastChangelog = status?.Changelog;
-        Plugin.Log.Information($"Fetched latest info. Game Version: {status?.GameVersion}, XIV Rus Version: {status?.RusVersion}");
         return status;
     }
 
@@ -63,8 +62,8 @@ public class NetworkService
     {
         var xivstatus = await GetBranchStatus();
 
-        if (xivstatus?.GameVersion != Plugin.CurrentGameVersion) return AvailabilityStatus.Disabled;
-        else return AvailabilityStatus.Available;
+        //if (xivstatus?.GameVersion != Plugin.CurrentGameVersion) return AvailabilityStatus.Disabled;
+        return AvailabilityStatus.Available;
     }
 
     public async Task<string?> GetLastRemoteVersionAsync()
@@ -72,7 +71,7 @@ public class NetworkService
         var response = await GetBranchStatus();
         if (response == null) return null;
 
-        return response.RusVersion;
+        return response.Version;
     }
 
     public async Task CheckForUpdates()
@@ -99,10 +98,10 @@ public class NetworkService
 
         if(release == null) return;
 
-        if(release.RusVersion != null)
-            plugin.Configuration.LastInstalledVersion = release.RusVersion;
+        if(release.Version != null)
+            plugin.Configuration.LastInstalledVersion = release.Version;
         
-        var downloadSource = await GetFastestSource(release.Urls);
+        var downloadSource = await GetFastestSource(release.DownloadUrl);
 
         if (downloadSource == null)
             return;
