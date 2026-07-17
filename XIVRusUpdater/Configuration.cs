@@ -48,18 +48,17 @@ public class Configuration : IPluginConfiguration
     #endregion
 
     #region Components
-    public Dictionary<string, bool> EnabledComponents { get; set; } = new()
+    public HashSet<string> DisabledComponents { get; set; } = [];
+
+    public bool IsComponentEnabled(string id) => !DisabledComponents.Contains(id);
+
+    public void SetComponentEnabled(string id, bool enabled)
     {
-        ["enemy_npc"] = true,
-        ["place_names"] = true,
-        ["content_finder"] = true,
-        ["npc_names"] = true,
-        ["actions"] = true,
-        ["achievements"] = true,
-        ["titles"] = true,
-        ["collectibles"] = true,
-        ["emotes"] = true,
-    };
+        if (enabled)
+            DisabledComponents.Remove(id);
+        else
+            DisabledComponents.Add(id);
+    }
 
     #endregion
     public void Save()

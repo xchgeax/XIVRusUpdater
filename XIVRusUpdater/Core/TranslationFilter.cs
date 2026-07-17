@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Text;
+using XIVRusUpdater.Core.Components;
 
 namespace XIVRusUpdater.Core;
 
@@ -9,39 +10,63 @@ public sealed class TranslationFilter
 {
     private volatile HashSet<string> _activeSheets = new();
     private volatile List<string> _activePrefixes = new();
-    private volatile List<string> _allModified = new();
+    private volatile List<string> _allPrefixes = new();
+    private volatile HashSet<string> _allModified = new();
 
-    public void Rebuild(Dictionary<string, bool> enabledComponents)
+    public void Rebuild(IReadOnlySet<string> disabledComponents)
     {
-        var sheets = new HashSet<string>();
-        var prefixes = new List<string>();
-        var all = new List<string>();
+        var activeSheets = new HashSet<string>();
+        var activePrefixes = new List<string>();
+        var allPrefixes = new List<string>();
+        var allModified = new HashSet<string>();
 
-        foreach (var def in ComponentDefinitions.All)
+        foreach (var component in TranslationComponents.All)
         {
-            foreach (var sheet in def.Sheets)
-                all.Add(sheet);
-            if (!enabledComponents.GetValueOrDefault(def.Id)) continue;
+            foreach (var sheet in component.Sheets)
+                allModified.Add(sheet);
 
-            if (def.IsWildcard)
-                prefixes.Add(def.WildcardPrefix);
+            if (component.IsWildcard)
+                allPrefixes.Add(component.WildcardPrefix);
+
+            if (disabledComponents.Contains(component.Id))
+                continue;
+
+            if (component.IsWildcard)
+            {
+                activePrefixes.Add(component.WildcardPrefix);
+            }
             else
-                foreach (var sheet in def.Sheets)
-                    sheets.Add(sheet);
+            {
+                activeSheets.UnionWith(component.Sheets);
+            }
         }
 
-        _activeSheets = sheets;
-        _activePrefixes = prefixes;
-        _allModified = all;
+        _activeSheets = activeSheets;
+        _activePrefixes = activePrefixes;
+        _allPrefixes = allPrefixes;
+        _allModified = allModified;
     }
 
     public bool IsActive(string sheetName)
     {
-        if (_activeSheets.Contains(sheetName) && !_allModified.Contains(sheetName)) return true;
-        var prefixes = _activePrefixes;
-        for (int i = 0; i < prefixes.Count; i++)
-            if (sheetName.StartsWith(prefixes[i], StringComparison.OrdinalIgnoreCase))
+        foreach (var prefix in _activePrefixes)
+        {
+            if (sheetName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                 return true;
-        return false;
+        }
+
+        foreach (var prefix in _allPrefixes)
+        {
+            if (sheetName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                return false;
+        }
+            
+        if (_activeSheets.Contains(sheetName))
+            return true;
+
+        if (_allModified.Contains(sheetName))
+            return false;
+
+        return true;
     }
 }
