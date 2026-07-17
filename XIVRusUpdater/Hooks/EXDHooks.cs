@@ -8,7 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Text;
-using XIVRusUpdater.Utils;
+using XIVRusUpdater.Core;
 using XIVRusUpdater.Utils.Extentions;
 
 namespace XIVRusUpdater.Hooks;
@@ -23,12 +23,14 @@ public unsafe class EXDHooks : IDisposable
     private delegate IExcelRowWrapper* GetRowByIdDelegate(ExcelSheet* sheet, uint rowId, uint* outErrorCode = null);
     private delegate void* ResolveStringColumnIndirectionDelegate(void* columnPtr);
 
-    private readonly List<nint> _translationStrings = new();
+    private TranslationParser _parser;
 
     [ThreadStatic] private static ExcelContext context;
+
     public EXDHooks()
     {
         context = new ExcelContext();
+        _parser = new TranslationParser();
         var provider = Plugin.interopProvider;
 
         _hGetRowById = provider.HookFromAddress<GetRowByIdDelegate>(
@@ -51,22 +53,29 @@ public unsafe class EXDHooks : IDisposable
         _hResolveIndirection.Enable();
     }
 
-    public void Reset()
+    public void EnableAll()
     {
-        foreach (var ptr in _translationStrings)
-            IMemorySpace.Free((Utf8String*)ptr);
-        _translationStrings.Clear();
+        _hGetRowById.Enable();
+        _hGetRowByIndex.Enable();
+        _hResolveIndirection.Enable();
     }
 
-    public void Dispose()
+    public void DisableAll()
     {
         _hGetRowById.Disable();
         _hGetRowByIndex.Disable();
         _hResolveIndirection.Disable();
+    }
+
+    public void Dispose()
+    {
+        DisableAll();
 
         _hGetRowById.Dispose();
         _hGetRowByIndex.Dispose();
         _hResolveIndirection.Dispose();
+
+        _parser.Dispose();
     }
 
     private unsafe IExcelRowWrapper* Detour_GetRowById(ExcelSheet* sheet, uint rowId, uint* outErrorCode)
@@ -95,8 +104,9 @@ public unsafe class EXDHooks : IDisposable
     {
         var result = _hResolveIndirection!.Original(columnPtr);
 
-        var name = context.sheetName;
-        
+        if (string.IsNullOrEmpty(context.sheetName))
+            return result;
+
         if (context.lastRowId != context.lastResolvedRowId)
         {
             context.lastResolvedRowId = context.lastRowId;
@@ -115,6 +125,12 @@ public unsafe class EXDHooks : IDisposable
             return translated->StringPtr;
         }
         */
+
+        if(_parser.TryGetValue(context.sheetName, context.lastResolvedRowId, context.resolveCallCount, out var translation) 
+            && Plugin.filter.IsActive(context.sheetName))
+        {
+            return translation!.Pointer;
+        }
 
         return result;
     }

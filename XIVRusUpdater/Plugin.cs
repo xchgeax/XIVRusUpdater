@@ -13,6 +13,7 @@ using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
+using XIVRusUpdater.Core;
 using XIVRusUpdater.Hooks;
 using XIVRusUpdater.Services;
 using XIVRusUpdater.Utils.States;
@@ -29,7 +30,8 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
     [PluginService] internal static IGameInteropProvider interopProvider { get; private set; } = null!;
 
-    public static EXDHooks EXDGetters;
+    public static EXDHooks HookLayers { get; private set; } = null!;
+    public static TranslationFilter filter { get; private set; } = null!;
 
     internal static PenumbraService PenumbraApi { get; private set; } = null!;
     internal static NetworkService networkService { get; private set; } = null!;
@@ -49,13 +51,15 @@ public sealed class Plugin : IDalamudPlugin
 
     public Plugin()
     {
-        EXDGetters = new EXDHooks();
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        filter = new TranslationFilter();
+        filter.Rebuild(Configuration.EnabledComponents);
+        HookLayers = new EXDHooks();
         State = new UpdaterState();
         networkService = new NetworkService(this);
         PenumbraApi = new PenumbraService(PluginInterface);
         _ = Task.Run(Initialization);
-        
+
         Framework.Update += OnUpdate;
         
         var iconPath = Path.Combine(PluginInterface.AssemblyLocation.Directory?.FullName!, "icon.png");
@@ -114,7 +118,7 @@ public sealed class Plugin : IDalamudPlugin
 
         WindowSystem.RemoveAllWindows();
 
-        EXDGetters.Dispose();
+        HookLayers.Dispose();
         ConfigWindow.Dispose();
         MainWindow.Dispose();
         DownloadWindow.Dispose();
@@ -149,15 +153,4 @@ public sealed class Plugin : IDalamudPlugin
 
     public void ToggleConfigUi() => ConfigWindow.Toggle();
     public void ToggleMainUi() => MainWindow.Toggle();
-
-    // https://github.com/goatcorp/Dalamud/blob/master/Dalamud/Dalamud.cs#L163
-    public static void RestartGame()
-    {
-        [DllImport("kernel32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        static extern void RaiseException(uint dwExceptionCode, uint dwExceptionFlags, uint nNumberOfArguments, IntPtr lpArguments);
-
-        RaiseException(0x12345678, 0, 0, IntPtr.Zero);
-        Process.GetCurrentProcess().Kill();
-    }
 }
