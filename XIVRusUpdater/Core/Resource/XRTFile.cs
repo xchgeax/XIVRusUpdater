@@ -7,6 +7,8 @@ namespace XIVRusUpdater.Core.Resource;
 
 public class XRTFile
 {
+    public List<XRTRow> rows { get; init;  } 
+
     public XRTFile(string filePath)
     {
         if (!Path.Exists(filePath))
@@ -16,5 +18,11 @@ public class XRTFile
         {
             // TODO: Implement Reading after base design created
         }
+    }
+
+    public sealed class XRTRow
+    {
+        public uint RowId { get; init; }
+        public required List<byte[]> TextFields { get; init; }
     }
 }

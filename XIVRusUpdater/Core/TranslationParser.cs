@@ -35,6 +35,23 @@ public class TranslationParser : IDisposable
     public TranslationParser()
     {
         _ResourceManager = new(Plugin.PluginInterface.AssemblyLocation.Directory.FullName);
+
+        foreach (var sheet in _ResourceManager.GetAllSheets())
+        {
+            if(_ResourceManager.TryGetXRT(sheet, out var file))
+            {
+                foreach(var row in file.rows)
+                {
+                    TranslationRow translation = new TranslationRow();
+                    for(int i = 0; i < row.TextFields.Count; ++i)
+                    {
+                        var columnTrans = row.TextFields[i];
+                        translation.Add(i, columnTrans);
+                    }
+                    TryAdd(sheet, row.RowId, translation);
+                }    
+            }
+        }
     }
 
     public bool TryAdd(string sheetName, uint RowID, TranslationRow row) => Sheets.TryAdd((sheetName, RowID), row);
@@ -60,5 +77,3 @@ public class TranslationParser : IDisposable
         }
     }
 }
-
-
