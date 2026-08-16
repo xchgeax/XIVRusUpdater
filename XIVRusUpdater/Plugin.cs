@@ -53,7 +53,7 @@ public sealed class Plugin : IDalamudPlugin
     {
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         filter = new TranslationFilter();
-        filter.Rebuild(Configuration.EnabledComponents);
+        filter.Rebuild(Configuration.DisabledComponents);
         HookLayers = new EXDHooks();
         State = new UpdaterState();
         networkService = new NetworkService(this);
