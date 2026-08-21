@@ -19,18 +19,22 @@ public sealed class TranslationComponent : Attribute
     public string Id { get; }
     public string DisplayName { get; }
     public string Description { get; }
-    public IReadOnlyList<string> Sheets { get; }
-    public bool IsWildcard { get; } = false;
-    public string WildcardPrefix { get; } = "";
+    public Dictionary<string, int[]> Sheets { get; }
 
     public TranslationComponent(string id, string displayName, string description, string[] sheets, bool isWildcard = false, string wildcardPrefix = "")
     {
         Id = id;
         DisplayName = displayName;
         Description = description;
+        Sheets = sheets.ToDictionary(x => x, _ => Array.Empty<int>());
+    }
+
+    public TranslationComponent(string id, string displayName, string description, Dictionary<string, int[]> sheets)
+    {
+        Id = id;
+        DisplayName = displayName;
+        Description = description;
         Sheets = sheets;
-        IsWildcard = isWildcard;
-        WildcardPrefix = wildcardPrefix;
     }
 }
 
@@ -65,10 +69,7 @@ public sealed class TitlesComponent;
 [TranslationComponent("collectibles", "Collectibles", "Includes mounts, minions, Adventurer Plate customization, chocobo barding, Triple Triad cards, Bozjan notes, Variant Dungeon records, Occult Records, and leves.", [
     "Mount",
     "Companion",
-    "CharaCardBase",
-    "CharaCardDecoration",
-    "CharaCardDesignPreset",
-    "CharaCardHeader",
+    "CharaCard*",
     "BannerBg",
     "BannerDecoration",
     "BannerDesignPreset",
