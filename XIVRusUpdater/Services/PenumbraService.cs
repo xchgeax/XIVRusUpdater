@@ -16,93 +16,114 @@ namespace XIVRusUpdater.Services;
 
 public sealed class PenumbraService
 {
-    private Penumbra.Api.IpcSubscribers.GetModList GetListMod { get; } = null!;
-    private Penumbra.Api.IpcSubscribers.InstallMod InstallMod { get; } = null!;
-    private Penumbra.Api.IpcSubscribers.DeleteMod DeleteMod { get; } = null!;
-    private Penumbra.Api.IpcSubscribers.ReloadMod ReloadMod { get; } = null!;
+    private Penumbra.Api.IpcSubscribers.InstallMod InstallMOD { get; } = null!;
+    private Penumbra.Api.IpcSubscribers.DeleteMod DeleteMOD { get; } = null!;
     private Penumbra.Api.IpcSubscribers.GetEnabledState GetEnableStatus { get; } = null!;
     private Penumbra.Api.IpcSubscribers.GetModListAdapter ModList { get; } = null!;
-    private Penumbra.Api.IpcSubscribers.GetCollection GetCollection { get; } = null!;
-    private Penumbra.Api.IpcSubscribers.GetCurrentModSettings ModSettings { get; } = null!;
     private Penumbra.Api.IpcSubscribers.GetModDirectory GetDirectory { get; } = null!;
     
     private const string InternalName = "Penumbra";
-    
+    private readonly IDalamudPluginInterface pluginInterface;
+
     public PenumbraService(IDalamudPluginInterface @interface)
     {
-        GetListMod = new (@interface);
-        InstallMod = new (@interface);
-        DeleteMod = new (@interface);
-        ReloadMod = new (@interface);
+        pluginInterface = @interface;
+
+        InstallMOD = new (@interface);
+        DeleteMOD = new (@interface);
         GetEnableStatus = new (@interface);
         ModList = new (@interface);
-        GetCollection = new (@interface);
-        ModSettings = new (@interface);
         GetDirectory = new (@interface);
     }
 
     public bool IsInstalled()
     {
-        return Plugin.PluginInterface.InstalledPlugins.Any(p => p.InternalName.Equals(InternalName, StringComparison.OrdinalIgnoreCase));
+        return pluginInterface.InstalledPlugins.Any(p => p.InternalName.Equals(InternalName, StringComparison.OrdinalIgnoreCase));
     }
 
-    public bool IsPenumbraEnabled() => GetEnableStatus.Invoke();
-    
-    private Guid? GetDefaultCollection()
+    public bool IsPenumbraEnabled()
     {
-        return GetCollection.Invoke(Penumbra.Api.Enums.ApiCollectionType.Default)?.Id;
+        try
+        { 
+            return GetEnableStatus.Invoke();
+        }
+        catch (IpcNotReadyError)
+        {
+            return false;
+        }
+    }
+    
+    public string? GetDefaultDirectory()
+    {
+        try
+        {
+            return GetDirectory.Invoke();
+        }
+        catch (IpcNotReadyError)
+        {
+            return null;
+        }
     }
 
-    public string GetDefaultDirectory() => GetDirectory.Invoke();
+    public bool IsModInstalled(string modName) => ModList.Invoke().Any(x => x.Identifier == modName);
 
-    public bool IsModInstalled(string modName) => GetListMod.Invoke().ContainsKey(modName);
-    
     public string? GetModVersion(string modName)
     {
-        if (!IsModInstalled(modName)) return null;
+        try 
+        { 
+            var mod = ModList.Invoke().FirstOrDefault(x => x.Identifier == modName);
 
-        var modList = ModList.Invoke();
-        var mod = modList.FirstOrDefault(x => x.Identifier == modName);
-        var modVersion = mod.Version;
-        return modVersion;
+            return mod.Version;
+        }
+        catch (IpcNotReadyError)
+        {
+            return null;
+        }
     }
 
     public DirectoryInfo? GetModPath(string modName)
     {
-        if (!IsModInstalled(modName)) return null;
+        try
+        {
+            var mod = ModList.Invoke().FirstOrDefault(x => x.Identifier == modName);
 
-        var modList = ModList.Invoke();
-        var mod = modList.FirstOrDefault(x => x.Identifier == modName);
-        return mod.ModPath;
+            return mod.ModPath;
+        }
+        catch (IpcNotReadyError)
+        {
+            return null;
+        }
     }
 
-    public bool DeleteMods(string modName)
+    public bool DeleteMod(string modName)
     {
-        var responce = DeleteMod.Invoke(string.Empty, modName);
-
-        if (responce == Penumbra.Api.Enums.PenumbraApiEc.Success) return true;
-
-        Plugin.Log.Error($"Failed to delete plugin: Recieve {Enum.GetName(responce)} from Penumbra");
-        return false;
+        try 
+        {
+            var responce = DeleteMOD.Invoke(string.Empty, modName);
+            if (responce == Penumbra.Api.Enums.PenumbraApiEc.Success) return true;
+            Plugin.Log.Error($"Failed to delete mod: Recieve {Enum.GetName(responce)} from Penumbra");
+            return false; 
+        }
+        catch(IpcNotReadyError)
+        {
+            return false;
+        }
     }
 
-    public bool ReloadMods(string modName)
+    public bool InstallMod(string downloadPath)
     {
-        var response = ReloadMod.Invoke(string.Empty, modName);
+        try
+        { 
+            var response = InstallMOD.Invoke(downloadPath);
 
-        if (response == Penumbra.Api.Enums.PenumbraApiEc.Success) return true;
+            if (response == Penumbra.Api.Enums.PenumbraApiEc.Success) return true;
 
-        Plugin.Log.Error($"Failed to reload plugin: Recieve {Enum.GetName(response)} from Penumbra");
-        return false;
-    }
-
-    public bool InstallMods(string downloadPath)
-    {
-        var response = InstallMod.Invoke(downloadPath);
-
-        if (response == Penumbra.Api.Enums.PenumbraApiEc.Success) return true;
-
-        Plugin.Log.Error($"Failed to install plugin: Recieve {Enum.GetName(response)} from Penumbra");
-        return false;
+            Plugin.Log.Error($"Failed to install mod: Recieve {Enum.GetName(response)} from Penumbra");
+            return false;
+        }
+        catch (IpcNotReadyError)
+        {
+            return false;
+        }
     }
 }

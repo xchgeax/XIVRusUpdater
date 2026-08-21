@@ -125,9 +125,9 @@ public class NetworkService
 
     public void InstallDownloadedVersionAsync(string filePath)
     {
-        Plugin.PenumbraApi.DeleteMods(Plugin.State.mod.modName);
+        Plugin.PenumbraApi.DeleteMod(Plugin.State.mod.modName);
 
-        bool isInstall = Plugin.PenumbraApi.InstallMods(filePath);
+        bool isInstall = Plugin.PenumbraApi.InstallMod(filePath);
         Plugin.Log.Information($"XIV Rus has been queued for installation in Penumbra. Status: {isInstall}");
     }
 
