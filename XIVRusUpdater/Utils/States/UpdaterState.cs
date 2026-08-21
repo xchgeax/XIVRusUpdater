@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Text;
 using XIVRusUpdater.Models;
 using XIVRusUpdater.Services;
 
@@ -8,11 +6,11 @@ namespace XIVRusUpdater.Utils.States;
 
 public sealed class UpdaterState
 {
-    public IPenumbraMod mod { get; set; } = new IPenumbraMod("XIV Rus", "https://update.xivrus.ru/api");
+    public ITranslationEngine mod { get; set; } = new ITranslationEngine("XIV Rus", "https://update.xivrus.ru/api");
     
     public DownloadState Download { get; set; } = new DownloadState();
 
-    public XIVStatus? LastRemoteStatus { get; set; }
+    public TranslationManifest? LastRemoteStatus { get; set; }
 
     public NetworkService.AvailabilityStatus Availability { get; set; }
         = NetworkService.AvailabilityStatus.Disabled;

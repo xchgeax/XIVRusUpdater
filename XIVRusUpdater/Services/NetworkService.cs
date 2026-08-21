@@ -1,6 +1,4 @@
-using Lumina.Data;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -9,10 +7,9 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
-using XIVRusUpdater;
 using XIVRusUpdater.Models;
-using XIVRusUpdater.Utils;
-using static XIVRusUpdater.Utils.HttpClientProgressExtensions;
+using XIVRusUpdater.Utils.Extentions;
+using static XIVRusUpdater.Utils.Extentions.HttpClientProgressExtensions;
 
 namespace XIVRusUpdater.Services;
 
@@ -43,7 +40,7 @@ public class NetworkService
     public string CurrentBranch() => plugin.Configuration.Channel == UpdateChannel.Beta ? $"{Plugin.State.mod.API_BASE}/branches/test" 
         : $"{Plugin.State.mod.API_BASE}/branches/release";
 
-    public async Task<XIVStatus?> GetBranchStatus()
+    public async Task<TranslationManifest?> GetBranchStatus()
     {
         var branch = CurrentBranch();
 
@@ -51,11 +48,10 @@ public class NetworkService
 
         responseMessage.EnsureSuccessStatusCode();
 
-        var status = JsonConvert.DeserializeObject<XIVStatus>(await responseMessage.Content.ReadAsStringAsync());
+        var status = JsonConvert.DeserializeObject<TranslationManifest>(await responseMessage.Content.ReadAsStringAsync());
 
         Plugin.State.LastRemoteStatus = status;
         Plugin.State.LastChangelog = status?.Changelog;
-        Plugin.Log.Information($"Fetched latest info. Game Version: {status?.GameVersion}, XIV Rus Version: {status?.RusVersion}");
         return status;
     }
 
@@ -63,8 +59,8 @@ public class NetworkService
     {
         var xivstatus = await GetBranchStatus();
 
-        if (xivstatus?.GameVersion != Plugin.CurrentGameVersion) return AvailabilityStatus.Disabled;
-        else return AvailabilityStatus.Available;
+        //if (xivstatus?.GameVersion != Plugin.CurrentGameVersion) return AvailabilityStatus.Disabled;
+        return AvailabilityStatus.Available;
     }
 
     public async Task<string?> GetLastRemoteVersionAsync()
@@ -72,7 +68,7 @@ public class NetworkService
         var response = await GetBranchStatus();
         if (response == null) return null;
 
-        return response.RusVersion;
+        return response.Version;
     }
 
     public async Task CheckForUpdates()
@@ -99,10 +95,10 @@ public class NetworkService
 
         if(release == null) return;
 
-        if(release.RusVersion != null)
-            plugin.Configuration.LastInstalledVersion = release.RusVersion;
+        if(release.Version != null)
+            plugin.Configuration.LastInstalledVersion = release.Version;
         
-        var downloadSource = await GetFastestSource(release.Urls);
+        var downloadSource = await GetFastestSource(release.DownloadUrl);
 
         if (downloadSource == null)
             return;
@@ -122,15 +118,13 @@ public class NetworkService
             return;
 
         InstallDownloadedVersionAsync(tempFile);
-
-        Plugin.State.ShowChangelog = true;
     }
 
     public void InstallDownloadedVersionAsync(string filePath)
     {
-        Plugin.PenumbraApi.DeleteMods(Plugin.State.mod.modName);
+        Plugin.PenumbraApi.DeleteMod(Plugin.State.mod.modName);
 
-        bool isInstall = Plugin.PenumbraApi.InstallMods(filePath);
+        bool isInstall = Plugin.PenumbraApi.InstallMod(filePath);
         Plugin.Log.Information($"XIV Rus has been queued for installation in Penumbra. Status: {isInstall}");
     }
 
@@ -140,7 +134,7 @@ public class NetworkService
         {
             Plugin.State.Availability = await GetStatusAsync();
 
-            Plugin.State.PenumbraEnabled = Plugin.PenumbraApi.IsEnabled();
+            Plugin.State.PenumbraEnabled = Plugin.PenumbraApi.IsPenumbraEnabled();
             Plugin.State.ModInstalled = Plugin.PenumbraApi.IsModInstalled(Plugin.State.mod.modName);
     
             var remote = await GetLastRemoteVersionAsync();

@@ -1,5 +1,6 @@
 using Dalamud.Configuration;
 using System;
+using System.Collections.Generic;
 
 namespace XIVRusUpdater;
 
@@ -46,6 +47,20 @@ public class Configuration : IPluginConfiguration
 
     #endregion
 
+    #region Components
+    public HashSet<string> DisabledComponents { get; set; } = [];
+
+    public bool IsComponentEnabled(string id) => !DisabledComponents.Contains(id);
+
+    public void SetComponentEnabled(string id, bool enabled)
+    {
+        if (enabled)
+            DisabledComponents.Remove(id);
+        else
+            DisabledComponents.Add(id);
+    }
+
+    #endregion
     public void Save()
     {
         Plugin.PluginInterface.SavePluginConfig(this);
