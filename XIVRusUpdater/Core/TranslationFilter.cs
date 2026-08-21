@@ -4,7 +4,7 @@ using XIVRusUpdater.Core.Components;
 
 namespace XIVRusUpdater.Core;
 
-sealed class TranslationFilter
+public sealed class TranslationFilter
 {
     private volatile HashSet<string> _activeSheets = new();
     private volatile List<string> _activePrefixes = new();
