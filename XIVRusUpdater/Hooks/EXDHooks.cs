@@ -115,19 +115,8 @@ public unsafe class EXDHooks : IDisposable
 
         context.resolveCallCount++;
 
-        /*
-        if (context.resolveCallCount == 1)
-        {
-            var str = Marshal.PtrToStringUTF8((nint)result);
-            var translated = Utf8String.FromString("FunnyScout, where is 7.5 translation?");
-            _translationStrings.Add((nint)translated);
-            Plugin.Log.Information($"[Patch] Quest rowId={context.lastRowId} resolveCall={context.resolveCallCount} \"{str}\" → patched");
-            return translated->StringPtr;
-        }
-        */
-
-        if(_parser.TryGetValue(context.sheetName, context.lastResolvedRowId, context.resolveCallCount, out var translation) 
-            && Plugin.filter.IsActive(context.sheetName))
+        if(Plugin.filter.IsActive(context.sheetName) && 
+            _parser.TryGetValue(context.sheetName, context.lastResolvedRowId, context.resolveCallCount, out var translation) )
         {
             return translation!.Pointer;
         }
@@ -142,5 +131,5 @@ public class ExcelContext()
     public string? sheetName { get; set; }
     public uint lastRowId { get; set; }
     public uint lastResolvedRowId { get; set; }
-    public int resolveCallCount { get; set; }
+    public uint resolveCallCount { get; set; }
 }

@@ -52,6 +52,8 @@ public sealed class TranslationResourceManager : IDisposable
 
     public void UnloadAll()
     {
+        foreach(var (_, file) in _xrtCache)
+            file.Dispose();
         _xrtCache.Clear();
     }
 

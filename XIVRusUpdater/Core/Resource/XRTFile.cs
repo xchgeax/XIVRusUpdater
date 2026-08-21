@@ -1,13 +1,15 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
+using XIVRusUpdater.Utils;
 
 namespace XIVRusUpdater.Core.Resource;
 
-public class XRTFile
+public class XRTFile : IDisposable
 {
-    public List<XRTRow> rows { get; init;  } 
+    public Dictionary<uint, List<ByteArrayWrapper>> Rows { get; init;  } 
 
     public XRTFile(string filePath)
     {
@@ -20,9 +22,30 @@ public class XRTFile
         }
     }
 
-    public sealed class XRTRow
+    public bool TryGetData(uint rowId, uint column, out ByteArrayWrapper? value)
     {
-        public uint RowId { get; init; }
-        public required List<byte[]> TextFields { get; init; }
+        value = null;
+
+        if (!Rows.TryGetValue(rowId, out var row))
+            return false;
+
+        if (column >= row.Count)
+            return false;
+
+        value = row[(int)column];
+        return true;
+    }
+
+    public void Dispose()
+    {
+        foreach(var (RowId, Columns) in Rows)
+        {
+            foreach(var col in Columns)
+            {
+                col.Dispose();
+            }
+        }
+
+        Rows.Clear();
     }
 }
