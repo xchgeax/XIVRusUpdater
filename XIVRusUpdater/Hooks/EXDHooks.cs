@@ -1,15 +1,8 @@
 using Dalamud.Hooking;
-using Dalamud.Memory;
-using FFXIVClientStructs.FFXIV.Client.System.Memory;
-using FFXIVClientStructs.FFXIV.Client.System.String;
 using FFXIVClientStructs.FFXIV.Common.Component.Excel;
 using FFXIVClientStructs.FFXIV.Component.Excel;
 using System;
-using System.Collections.Generic;
-using System.Runtime.InteropServices;
-using System.Text;
 using XIVRusUpdater.Core;
-using XIVRusUpdater.Utils.Extentions;
 
 namespace XIVRusUpdater.Hooks;
 

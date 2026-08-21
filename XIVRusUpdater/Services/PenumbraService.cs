@@ -1,16 +1,8 @@
 using Dalamud.Plugin;
 using Dalamud.Plugin.Ipc.Exceptions;
-using FFXIVClientStructs.FFXIV.Client.Graphics.Kernel;
-using Penumbra.Api.Enums;
-using Penumbra.Api.Helpers;
-using Penumbra.Api.IpcSubscribers;
-using Penumbra.Api.IpcSubscribers.Legacy;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace XIVRusUpdater.Services;
 

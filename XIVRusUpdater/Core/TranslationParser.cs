@@ -1,9 +1,4 @@
-using Dalamud.Game.Text.SeStringHandling;
-using Lumina.Text.ReadOnly;
 using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Transactions;
 using XIVRusUpdater.Core.Resource;
 using XIVRusUpdater.Utils;
 
