@@ -33,6 +33,27 @@ public class ConfigWindow : Window, IDisposable
         {
             ImGui.BeginChild("GeneralSettings", new Vector2(0, 70), true);
 
+            var currentEngine = TranslationEngines.Get(configuration.EngineId);
+
+            if (ImGui.BeginCombo("Translation Engine", currentEngine?.DisplayName ?? "Unknown"))
+            {
+                foreach (var engine in TranslationEngines.All)
+                {
+                    bool selected = engine.Id == configuration.EngineId;
+
+                    if (ImGui.Selectable(engine.DisplayName, selected))
+                    {
+                        configuration.EngineId = engine.Id;
+                        configuration.Save();
+                    }
+
+                    if (selected)
+                        ImGui.SetItemDefaultFocus();
+                }
+
+                ImGui.EndCombo();
+            }
+
             var showNotify = configuration.ShowNotifications;
             var showChangelog = configuration.ShowChangelogAfterUpdate;
 

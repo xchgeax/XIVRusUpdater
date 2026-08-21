@@ -1,4 +1,5 @@
 using System;
+using XIVRusUpdater.Core.Components;
 using XIVRusUpdater.Models;
 using XIVRusUpdater.Services;
 
@@ -6,8 +7,6 @@ namespace XIVRusUpdater.Utils.States;
 
 public sealed class UpdaterState
 {
-    public ITranslationEngine mod { get; set; } = new ITranslationEngine("XIV Rus", "https://update.xivrus.ru/api");
-    
     public DownloadState Download { get; set; } = new DownloadState();
 
     public TranslationManifest? LastRemoteStatus { get; set; }

@@ -7,6 +7,7 @@ using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
+using XIVRusUpdater.Core.Components;
 using XIVRusUpdater.Models;
 using XIVRusUpdater.Utils.Extentions;
 using static XIVRusUpdater.Utils.Extentions.HttpClientProgressExtensions;
@@ -37,8 +38,12 @@ public class NetworkService
         return client;
     }
 
-    public string CurrentBranch() => plugin.Configuration.Channel == UpdateChannel.Beta ? $"{Plugin.State.mod.API_BASE}/branches/test" 
-        : $"{Plugin.State.mod.API_BASE}/branches/release";
+    public string CurrentBranch()
+    {
+        var engine = TranslationEngines.Get(plugin.Configuration.EngineId);
+
+        return plugin.Configuration.Channel == UpdateChannel.Beta ? $"{engine.ApiUrl}/branches/test" : $"{engine.ApiUrl}/branches/release";
+    }
 
     public async Task<TranslationManifest?> GetBranchStatus()
     {
@@ -122,7 +127,9 @@ public class NetworkService
 
     public void InstallDownloadedVersionAsync(string filePath)
     {
-        Plugin.PenumbraApi.DeleteMod(Plugin.State.mod.modName);
+        var engine = TranslationEngines.Get(plugin.Configuration.EngineId);
+
+        Plugin.PenumbraApi.DeleteMod(engine.ModName);
 
         bool isInstall = Plugin.PenumbraApi.InstallMod(filePath);
         Plugin.Log.Information($"XIV Rus has been queued for installation in Penumbra. Status: {isInstall}");
@@ -132,16 +139,18 @@ public class NetworkService
     {
         try
         {
+            var engine = TranslationEngines.Get(plugin.Configuration.EngineId);
+
             Plugin.State.Availability = await GetStatusAsync();
 
             Plugin.State.PenumbraEnabled = Plugin.PenumbraApi.IsPenumbraEnabled();
-            Plugin.State.ModInstalled = Plugin.PenumbraApi.IsModInstalled(Plugin.State.mod.modName);
+            Plugin.State.ModInstalled = Plugin.PenumbraApi.IsModInstalled(engine.ModName);
     
             var remote = await GetLastRemoteVersionAsync();
 
             plugin.Configuration.LastKnownRemoteVersion = remote ?? "Unknown";
 
-            string modVersion = Plugin.PenumbraApi.GetModVersion(Plugin.State.mod.modName) ?? "Not installed";
+            string modVersion = Plugin.PenumbraApi.GetModVersion(engine.ModName) ?? "Not installed";
             
             Plugin.State.InstalledVersion = modVersion;
 
