@@ -18,7 +18,8 @@ public unsafe class EXDHooks : IDisposable
 
     private TranslationParser _parser;
 
-    [ThreadStatic] private static ExcelContext context;
+    [ThreadStatic] private static ExcelContext? context;
+    private static ExcelContext Context => context ??= new ExcelContext();
 
     public EXDHooks()
     {
@@ -76,8 +77,9 @@ public unsafe class EXDHooks : IDisposable
         var result = _hGetRowById!.Original(sheet, rowId, outErrorCode);
         if (sheet != null)
         {
-            context.sheetName = sheet->SheetName.ToString();
-            context.lastRowId = rowId;
+            var ctx = Context;
+            ctx.sheetName = sheet->SheetName.ToString();
+            ctx.lastRowId = rowId;
         }
         return result;
     }
@@ -87,8 +89,10 @@ public unsafe class EXDHooks : IDisposable
         var result = _hGetRowByIndex!.Original(sheet, rowIndex, descriptor);
         if (sheet != null)
         {
-            context.sheetName = sheet->SheetName.ToString();
-            context.lastRowId = descriptor->RowId;
+            var ctx = Context;
+
+            ctx.sheetName = sheet->SheetName.ToString();
+            ctx.lastRowId = descriptor->RowId;
         }
         return result;
     }
@@ -97,19 +101,21 @@ public unsafe class EXDHooks : IDisposable
     {
         var result = _hResolveIndirection!.Original(columnPtr);
 
-        if (string.IsNullOrEmpty(context.sheetName))
+        var ctx = Context;
+
+        if (string.IsNullOrEmpty(ctx.sheetName))
             return result;
 
-        if (context.lastRowId != context.lastResolvedRowId)
+        if (ctx.lastRowId != ctx.lastResolvedRowId)
         {
-            context.lastResolvedRowId = context.lastRowId;
-            context.resolveCallCount = 0;
+            ctx.lastResolvedRowId = ctx.lastRowId;
+            ctx.resolveCallCount = 0;
         }
 
-        context.resolveCallCount++;
+        ctx.resolveCallCount++;
 
-        if(Plugin.filter.IsActive(context.sheetName) && 
-            _parser.TryGetValue(context.sheetName, context.lastResolvedRowId, context.resolveCallCount, out var translation) )
+        if(Plugin.filter.IsActive(ctx.sheetName) && 
+            _parser.TryGetValue(ctx.sheetName, ctx.lastResolvedRowId, ctx.resolveCallCount, out var translation) )
         {
             return translation!.Pointer;
         }

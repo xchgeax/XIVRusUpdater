@@ -13,10 +13,10 @@ public sealed class TranslationResourceManager : IDisposable
     
     public TranslationResourceManager(string dataDir)
     {
-        if (!Directory.Exists(dataDir))
-            throw new DirectoryNotFoundException();
-
         _xrtDir = Path.Combine(dataDir, "xrt");
+
+        if (!Directory.Exists(_xrtDir))
+            return;
 
         foreach (var file in Directory.EnumerateFiles(_xrtDir, "*.xrt", SearchOption.AllDirectories))
         {

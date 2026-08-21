@@ -1,8 +1,11 @@
-using System;
-using System.Numerics;
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Components;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
+using System;
+using System.Numerics;
+using XIVRusUpdater.Core;
+using XIVRusUpdater.Core.Components;
 using XIVRusUpdater.Utils;
 
 namespace XIVRusUpdater.Windows;
@@ -32,19 +35,63 @@ public class ConfigWindow : Window, IDisposable
 
             var showNotify = configuration.ShowNotifications;
             var showChangelog = configuration.ShowChangelogAfterUpdate;
-            
-            if(ImGui.Checkbox(Translations.ShowNotifications, ref showNotify))
+
+            if (ImGui.Checkbox(Translations.ShowNotifications, ref showNotify))
             {
                 configuration.ShowNotifications = showNotify;
                 configuration.Save();
             }
-            if(ImGui.Checkbox(Translations.ShowChangelogAfterUpdate, ref showChangelog))
+            if (ImGui.Checkbox(Translations.ShowChangelogAfterUpdate, ref showChangelog))
             {
                 configuration.ShowChangelogAfterUpdate = showChangelog;
                 configuration.Save();
             }
-            
+
             ImGui.EndChild();
+        }
+
+        if (ImGui.CollapsingHeader("Components"))
+        {
+            var translationFilter = Plugin.filter;
+
+            if (ImGui.Button("Enable All"))
+            {
+                configuration.DisabledComponents.Clear();
+                translationFilter.Rebuild(configuration.DisabledComponents);
+            }
+
+            ImGui.SameLine();
+
+            if (ImGui.Button("Disable All"))
+            {
+                configuration.DisabledComponents.Clear();
+
+                foreach (var component in TranslationComponents.All)
+                    configuration.DisabledComponents.Add(component.Id);
+
+                translationFilter.Rebuild(configuration.DisabledComponents);
+            }
+
+            ImGui.Separator();
+
+            foreach (var component in TranslationComponents.All)
+            {
+                bool enabled = !configuration.DisabledComponents.Contains(component.Id);
+
+                if (ImGui.Checkbox(component.DisplayName, ref enabled))
+                {
+                    if (enabled)
+                        configuration.DisabledComponents.Remove(component.Id);
+                    else
+                        configuration.DisabledComponents.Add(component.Id);
+
+                    translationFilter.Rebuild(configuration.DisabledComponents);
+                }
+
+                ImGui.SameLine();
+
+                ImGuiComponents.HelpMarker(component.Description);
+            }
         }
 
         if (ImGui.CollapsingHeader(Translations.UpdatesHeader, ImGuiTreeNodeFlags.DefaultOpen))
