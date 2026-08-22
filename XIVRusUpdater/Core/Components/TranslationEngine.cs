@@ -6,22 +6,7 @@ using System.Reflection;
 
 namespace XIVRusUpdater.Core.Components;
 
-public static class TranslationEngines
-{
-    public static IReadOnlyList<TranslationEngine> All { get; } =
-        Assembly.GetExecutingAssembly().DefinedTypes
-            .Select(t => t.GetCustomAttribute<TranslationEngineDefinition>())
-            .Where(a => a is not null)
-            .Cast<TranslationEngineDefinition>()
-            .Select(a => new TranslationEngine(a))
-            .ToArray();
-
-    private static IReadOnlyDictionary<string, TranslationEngine> ById { get; } =
-        All.ToDictionary(x => x.Id);
-
-    public static TranslationEngine? Get(string id) =>
-        ById.GetValueOrDefault(id);
-}
+public static partial class TranslationEngines;
 
 public sealed class TranslationEngine
 {
