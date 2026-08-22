@@ -7,8 +7,6 @@
     <IsPackable>false</IsPackable>
   </PropertyGroup>
 	<PropertyGroup>
-		<Version>0.0.0.1</Version>
-
 		<!-- Plugin metadata -->
 		<Author>hOst1k</Author>
 		<Name>XIV Rus</Name>
@@ -36,6 +34,10 @@
     <PackageReference Include="morelinq" Version="4.4.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
     <PackageReference Include="Penumbra.Api" Version="5.15.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\XIVRus.Generators\XIVRus.Generators.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
   </ItemGroup>
 
   <ItemGroup>
