@@ -8,17 +8,18 @@ namespace XIVRusUpdater.Core.Resource;
 public sealed class TranslationResourceManager : IDisposable
 {
     private readonly string _xrtDir;
+    private static readonly string Extension = "xrt";
 
     private readonly Dictionary<string, XRTFile> _xrtCache = new();
     
     public TranslationResourceManager(string dataDir)
     {
-        _xrtDir = Path.Combine(dataDir, "xrt");
+        _xrtDir = Path.Combine(dataDir, Extension);
 
         if (!Directory.Exists(_xrtDir))
             return;
 
-        foreach (var file in Directory.EnumerateFiles(_xrtDir, "*.xrt", SearchOption.AllDirectories))
+        foreach (var file in Directory.EnumerateFiles(_xrtDir, $"*.{Extension}", SearchOption.AllDirectories))
         {
             var relative = Path.GetRelativePath(_xrtDir, file);
 
@@ -39,13 +40,13 @@ public sealed class TranslationResourceManager : IDisposable
     public bool TryGetXRT(string sheetName, out XRTFile data)
     {
         if (_xrtCache.TryGetValue(sheetName, out data)) return true;
-        var path = ToPath(_xrtDir, sheetName, ".xrt");
+        var path = ToPath(_xrtDir, sheetName, $".{Extension}");
         if (!File.Exists(path)) return false;
         _xrtCache[sheetName] = data = new XRTFile(path);
         return true;
     }
 
-    public bool HasSheet(string sheetName) => File.Exists(ToPath(_xrtDir, sheetName, ".xrt"));
+    public bool HasSheet(string sheetName) => File.Exists(ToPath(_xrtDir, sheetName, $".{Extension}"));
 
     public List<string> GetAllSheets() => _xrtCache.Keys.ToList();
 
