@@ -10,14 +10,14 @@ public class TranslationParser : IDisposable
 
     public TranslationParser()
     {
-        _ResourceManager = new TranslationResourceManager(Plugin.PluginInterface.AssemblyLocation.Directory.FullName);
+        _ResourceManager = new TranslationResourceManager(Plugin.PluginInterface.AssemblyLocation.Directory.FullName, ResourceFormat.Csv);
     }
 
     public bool TryGetValue(string sheetName, uint RowId, uint Column, out ByteArrayWrapper? translation)
     {
         translation = null;
         ByteArrayWrapper result;
-        if (_ResourceManager.TryGetXRT(sheetName, out var xrtFile))
+        if (_ResourceManager.TryGet(sheetName, out var xrtFile))
         {
             if (xrtFile.TryGetData(RowId, Column, out var @byte))
             {

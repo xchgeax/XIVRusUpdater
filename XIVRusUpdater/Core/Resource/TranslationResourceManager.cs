@@ -7,54 +7,66 @@ namespace XIVRusUpdater.Core.Resource;
 
 public sealed class TranslationResourceManager : IDisposable
 {
-    private readonly string _xrtDir;
-    private static readonly string Extension = "xrt";
+    private readonly string _resourceDir;
+    private readonly ResourceFormat _format;
+    private readonly string _extension;
 
-    private readonly Dictionary<string, XRTFile> _xrtCache = new();
+    private readonly Dictionary<string, FileResource> _cache = new();
     
-    public TranslationResourceManager(string dataDir)
+    public TranslationResourceManager(string dataDir, ResourceFormat format)
     {
-        _xrtDir = Path.Combine(dataDir, Extension);
+        _format = format;
+        _extension = ResourceFormatParser.GetExtension(format);
+        _resourceDir = Path.Combine(dataDir, _extension);
 
-        if (!Directory.Exists(_xrtDir))
+        if (!Directory.Exists(_resourceDir))
             return;
 
-        foreach (var file in Directory.EnumerateFiles(_xrtDir, $"*.{Extension}", SearchOption.AllDirectories))
+        foreach (var file in Directory.EnumerateFiles(_resourceDir, $"*.{_extension}", SearchOption.AllDirectories))
         {
-            var relative = Path.GetRelativePath(_xrtDir, file);
-
+            var relative = Path.GetRelativePath(_resourceDir, file);
             relative = Path.ChangeExtension(relative, null)!;
 
             var sheetName = relative.Replace(Path.DirectorySeparatorChar, '/');
 
-            _xrtCache[sheetName] = new XRTFile(file);
+            _cache[sheetName] = new FileResource(file, _format);
         }
     }
 
-    private static string ToPath(string baseDir, string sheetName, string ext)
+    public TranslationResourceManager(string dataDir, string format)
+        : this(dataDir, ResourceFormatParser.Parse(format))
     {
-        var relative = sheetName.Replace('/', Path.DirectorySeparatorChar) + ext;
-        return Path.Combine(baseDir, relative);
     }
 
-    public bool TryGetXRT(string sheetName, out XRTFile data)
+    private string ToPath(string sheetName)
     {
-        if (_xrtCache.TryGetValue(sheetName, out data)) return true;
-        var path = ToPath(_xrtDir, sheetName, $".{Extension}");
-        if (!File.Exists(path)) return false;
-        _xrtCache[sheetName] = data = new XRTFile(path);
+        var relative = sheetName.Replace('/', Path.DirectorySeparatorChar) + $".{_extension}";
+        return Path.Combine(_resourceDir, relative);
+    }
+
+    public bool TryGet(string sheetName, out FileResource data)
+    {
+        if (_cache.TryGetValue(sheetName, out data)) 
+            return true;
+        
+        var path = ToPath(sheetName);
+        if (!File.Exists(path)) 
+            return false;
+
+        _cache[sheetName] = data = new FileResource(path);
         return true;
     }
 
-    public bool HasSheet(string sheetName) => File.Exists(ToPath(_xrtDir, sheetName, $".{Extension}"));
+    public bool HasSheet(string sheetName) => File.Exists(ToPath(sheetName));
 
-    public List<string> GetAllSheets() => _xrtCache.Keys.ToList();
+    public List<string> GetAllSheets() => _cache.Keys.ToList();
 
     public void UnloadAll()
     {
-        foreach(var (_, file) in _xrtCache)
+        foreach(var (_, file) in _cache)
             file.Dispose();
-        _xrtCache.Clear();
+
+        _cache.Clear();
     }
 
     public void Dispose() => UnloadAll();
