@@ -8,6 +8,7 @@ using System.Collections.Generic;
 using System.Threading;
 using XIVRusUpdater.Core;
 using XIVRusUpdater.Utils;
+using XIVRusUpdater.Utils.Extentions;
 
 namespace XIVRusUpdater.Hooks;
 
@@ -161,12 +162,17 @@ public unsafe class EXDHooks : IDisposable
         uint resolvedRowId = rowId ?? (descriptor != null ? descriptor->RowId : 0);
 
         uint columnCount = activeSheet->ColumnCount;
+        ref readonly var sheetRef = ref *activeSheet;
 
         cacheLock.EnterWriteLock();
         try
         {
             for (uint columnIndex = 0; columnIndex < columnCount; columnIndex++)
             {
+                int stringColumnIndex = sheetRef.ToStringColumnIndex(columnIndex);
+                if (stringColumnIndex < 0)
+                    continue;
+
                 void* columnPtr = row->GetColumnPtr(columnIndex);
                 if (columnPtr == null)
                     continue;
@@ -174,7 +180,7 @@ public unsafe class EXDHooks : IDisposable
                 columnMap.Add((nint)columnPtr, new ColumnInfo(
                     Supplier: source,
                     RowId: resolvedRowId,
-                    ColumnIndex: columnIndex,
+                    ColumnIndex: (uint)stringColumnIndex,
                     SheetIndex: activeSheet->SheetIndex,
                     SheetName: sheetName
                 ));
