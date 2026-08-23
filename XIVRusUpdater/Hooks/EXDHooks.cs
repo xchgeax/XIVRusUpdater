@@ -1,134 +1,265 @@
 using Dalamud.Hooking;
+using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Common.Component.Excel;
 using FFXIVClientStructs.FFXIV.Component.Excel;
+using Serilog;
 using System;
+using System.Collections.Generic;
+using System.Threading;
 using XIVRusUpdater.Core;
 
 namespace XIVRusUpdater.Hooks;
 
 public unsafe class EXDHooks : IDisposable
 {
-    private readonly Hook<GetRowByIdDelegate> _hGetRowById;
-    private readonly Hook<GetRowByIndexDelegate> _hGetRowByIndex;
-    private readonly Hook<ResolveStringColumnIndirectionDelegate> _hResolveIndirection;
+    private readonly Hook<GetRowByIdDelegate> hGetRowById = null!;
+    private readonly Hook<GetRowByIndexDelegate> hGetRowByIndex = null!;
+    private readonly Hook<GetRowByDescriptorDelegate> hGetRowByDescriptor = null!;
+    private readonly Hook<GetSubRowByDescriptorDelegate> hGetSubRowByDescriptor = null!;
+    private readonly Hook<ResolveStringColumnIndirectionDelegate> hResolveIndirection = null!;
 
     private delegate IExcelRowWrapper* GetRowByIndexDelegate(ExcelSheet* sheet, uint rowIndex, ExcelRowDescriptor* descriptor);
     private delegate IExcelRowWrapper* GetRowByIdDelegate(ExcelSheet* sheet, uint rowId, uint* outErrorCode = null);
+    private delegate IExcelRowWrapper* GetRowByDescriptorDelegate(ExcelSheet* sheet, ExcelRowDescriptor* descriptor, uint* outErrorCode);
+    private delegate IExcelRowWrapper* GetSubRowByDescriptorDelegate(ExcelSheet* sheet, ExcelRowDescriptor* descriptor, uint* outErrorCode);
     private delegate void* ResolveStringColumnIndirectionDelegate(void* columnPtr);
 
-    private TranslationParser _parser;
+    private readonly TranslationParser parser;
+    private readonly LruCache<nint, ColumnInfo> columnMap = new(capacity: 8192);
+    private readonly ReaderWriterLockSlim cacheLock = new();
 
-    [ThreadStatic] private static ExcelContext? context;
-    private static ExcelContext Context => context ??= new ExcelContext();
-
-    public EXDHooks()
+    public EXDHooks(IGameInteropProvider provider)
     {
-        context = new ExcelContext();
-        _parser = new TranslationParser();
-        var provider = Plugin.interopProvider;
+        parser = new TranslationParser();
 
-        _hGetRowById = provider.HookFromAddress<GetRowByIdDelegate>(
-            ExcelSheet.MemberFunctionPointers.GetRowById,
-            Detour_GetRowById
-            );
+        hGetRowById = provider.HookFromAddress<GetRowByIdDelegate>(
+            ExcelSheet.MemberFunctionPointers.GetRowById, Detour_GetRowById);
 
-        _hGetRowByIndex = provider.HookFromAddress<GetRowByIndexDelegate>(
-            ExcelSheet.MemberFunctionPointers.GetRowByIndex,
-            Detour_GetRowByIndex
-        );
+        hGetRowByIndex = provider.HookFromAddress<GetRowByIndexDelegate>(
+            ExcelSheet.MemberFunctionPointers.GetRowByIndex, Detour_GetRowByIndex);
 
-        _hResolveIndirection = provider.HookFromAddress<ResolveStringColumnIndirectionDelegate>(
-            ExcelRow.MemberFunctionPointers.ResolveStringColumnIndirection,
-            Detour_ResolveStringColumnIndirection
-        );
+        hGetRowByDescriptor = provider.HookFromAddress<GetRowByDescriptorDelegate>(
+            ExcelSheet.MemberFunctionPointers.GetRowByDescriptor, Detour_GetRowByDescriptor);
 
-        _hGetRowById.Enable();
-        _hGetRowByIndex.Enable();
-        _hResolveIndirection.Enable();
+        hGetSubRowByDescriptor = provider.HookFromAddress<GetSubRowByDescriptorDelegate>(
+            ExcelSheet.MemberFunctionPointers.GetSubRowByDescriptor, Detour_GetSubRowByDescriptor);
+
+        hResolveIndirection = provider.HookFromAddress<ResolveStringColumnIndirectionDelegate>(
+            ExcelRow.MemberFunctionPointers.ResolveStringColumnIndirection, Detour_ResolveStringColumnIndirection);
+
+        EnableAll();
     }
 
     public void EnableAll()
     {
-        _hGetRowById.Enable();
-        _hGetRowByIndex.Enable();
-        _hResolveIndirection.Enable();
+        hGetRowById.Enable();
+        hGetRowByIndex.Enable();
+        hGetRowByDescriptor.Enable();
+        hGetSubRowByDescriptor.Enable();
+        hResolveIndirection.Enable();
     }
 
     public void DisableAll()
     {
-        _hGetRowById.Disable();
-        _hGetRowByIndex.Disable();
-        _hResolveIndirection.Disable();
+        hGetRowById.Disable();
+        hGetRowByIndex.Disable();
+        hGetRowByDescriptor.Disable();
+        hGetSubRowByDescriptor.Disable();
+        hResolveIndirection.Disable();
     }
 
     public void Dispose()
     {
         DisableAll();
 
-        _hGetRowById.Dispose();
-        _hGetRowByIndex.Dispose();
-        _hResolveIndirection.Dispose();
+        hGetRowById.Dispose();
+        hGetRowByIndex.Dispose();
+        hGetRowByDescriptor.Dispose();
+        hGetSubRowByDescriptor.Dispose();
+        hResolveIndirection.Dispose();
 
-        _parser.Dispose();
+        parser.Dispose();
+        cacheLock.Dispose();
     }
 
-    private unsafe IExcelRowWrapper* Detour_GetRowById(ExcelSheet* sheet, uint rowId, uint* outErrorCode)
+    private IExcelRowWrapper* Detour_GetRowById(ExcelSheet* sheet, uint rowId, uint* outErrorCode)
     {
-        var result = _hGetRowById!.Original(sheet, rowId, outErrorCode);
-        if (sheet != null)
-        {
-            var ctx = Context;
-            ctx.sheetName = sheet->SheetName.ToString();
-            ctx.lastRowId = rowId;
-        }
+        var result = hGetRowById.Original(sheet, rowId, outErrorCode);
+        PopulateRowMap(result, sheet, rowId: rowId, descriptor: null, source: nameof(Detour_GetRowById));
         return result;
     }
 
-    private unsafe IExcelRowWrapper* Detour_GetRowByIndex(ExcelSheet* sheet, uint rowIndex, ExcelRowDescriptor* descriptor)
+    private IExcelRowWrapper* Detour_GetRowByIndex(ExcelSheet* sheet, uint rowIndex, ExcelRowDescriptor* descriptor)
     {
-        var result = _hGetRowByIndex!.Original(sheet, rowIndex, descriptor);
-        if (sheet != null)
-        {
-            var ctx = Context;
-
-            ctx.sheetName = sheet->SheetName.ToString();
-            ctx.lastRowId = descriptor->RowId;
-        }
+        var result = hGetRowByIndex.Original(sheet, rowIndex, descriptor);
+        PopulateRowMap(result, sheet, rowId: null, descriptor: descriptor, source: nameof(Detour_GetRowByIndex));
         return result;
     }
 
-    private unsafe void* Detour_ResolveStringColumnIndirection(void* columnPtr)
+    private IExcelRowWrapper* Detour_GetRowByDescriptor(ExcelSheet* sheet, ExcelRowDescriptor* descriptor, uint* outErrorCode)
     {
-        var result = _hResolveIndirection!.Original(columnPtr);
+        var result = hGetRowByDescriptor.Original(sheet, descriptor, outErrorCode);
+        // TODO: вероятнее всего не вызывается в нужных нам местах
+        //PopulateRowMap(result, sheet, rowId: null, descriptor: descriptor, source: nameof(Detour_GetRowByDescriptor));
+        return result;
+    }
 
-        var ctx = Context;
+    private IExcelRowWrapper* Detour_GetSubRowByDescriptor(ExcelSheet* sheet, ExcelRowDescriptor* descriptor, uint* outErrorCode)
+    {
+        var result = hGetSubRowByDescriptor.Original(sheet, descriptor, outErrorCode);
+        PopulateRowMap(result, sheet, rowId: null, descriptor: descriptor, source: nameof(Detour_GetSubRowByDescriptor));
+        return result;
+    }
 
-        if (string.IsNullOrEmpty(ctx.sheetName))
-            return result;
+    private void* Detour_ResolveStringColumnIndirection(void* columnPtr)
+    {
+        var result = hResolveIndirection.Original(columnPtr);
+        nint ptr = (nint)columnPtr;
 
-        if (ctx.lastRowId != ctx.lastResolvedRowId)
+        ColumnInfo info;
+        cacheLock.EnterReadLock();
+        try
         {
-            ctx.lastResolvedRowId = ctx.lastRowId;
-            ctx.resolveCallCount = 0;
+            if (!columnMap.TryGetValue(ptr, out info))
+                return result;
+        }
+        finally
+        {
+            cacheLock.ExitReadLock();
         }
 
-        ctx.resolveCallCount++;
-
-        if(Plugin.filter.IsActive(ctx.sheetName) && 
-            _parser.TryGetValue(ctx.sheetName, ctx.lastResolvedRowId, ctx.resolveCallCount, out var translation) )
+        if (Plugin.filter.IsActive(info.SheetName) &&
+            parser.TryGetValue(info.SheetName, info.RowId, info.ColumnIndex, out var translation))
         {
             return translation!.Pointer;
         }
 
         return result;
     }
+
+    private void PopulateRowMap(
+        IExcelRowWrapper* wrapper,
+        ExcelSheet* sheet,
+        uint? rowId,
+        ExcelRowDescriptor* descriptor,
+        string source)
+    {
+        if (wrapper == null || wrapper->Row == null)
+            return;
+
+        ExcelRow* row = wrapper->Row;
+        ExcelSheet* activeSheet = row->Sheet != null ? row->Sheet : sheet;
+
+        if (activeSheet == null)
+            return;
+
+        string sheetName = activeSheet->SheetName.ToString();
+        if (string.IsNullOrEmpty(sheetName))
+            return;
+
+        uint resolvedRowId = rowId ?? (descriptor != null ? descriptor->RowId : 0);
+
+        uint columnCount = activeSheet->ColumnCount;
+
+        cacheLock.EnterWriteLock();
+        try
+        {
+            for (uint columnIndex = 0; columnIndex < columnCount; columnIndex++)
+            {
+                void* columnPtr = row->GetColumnPtr(columnIndex);
+                if (columnPtr == null)
+                    continue;
+
+                columnMap.Add((nint)columnPtr, new ColumnInfo(
+                    Supplier: source,
+                    RowId: resolvedRowId,
+                    ColumnIndex: columnIndex,
+                    SheetIndex: activeSheet->SheetIndex,
+                    SheetName: sheetName
+                ));
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, $"[{source}] Failed to populate column cache for sheet '{sheetName}'.");
+        }
+        finally
+        {
+            cacheLock.ExitWriteLock();
+        }
+    }
 }
 
+public readonly record struct ColumnInfo(
+    string Supplier,
+    uint RowId,
+    uint ColumnIndex,
+    uint SheetIndex,
+    string SheetName
+);
 
-public class ExcelContext()
+public class LruCache<TKey, TValue> where TKey : notnull
 {
-    public string? sheetName { get; set; }
-    public uint lastRowId { get; set; }
-    public uint lastResolvedRowId { get; set; }
-    public uint resolveCallCount { get; set; }
+    private readonly int capacity;
+    private readonly Dictionary<TKey, LinkedListNode<CacheItem>> cache;
+    private readonly LinkedList<CacheItem> lruList;
+
+    public LruCache(int capacity)
+    {
+        this.capacity = capacity;
+        cache = new Dictionary<TKey, LinkedListNode<CacheItem>>(capacity);
+        lruList = new LinkedList<CacheItem>();
+    }
+
+    public bool TryGetValue(TKey key, out TValue value)
+    {
+        if (cache.TryGetValue(key, out var node))
+        {
+            value = node.Value.Value;
+            lruList.Remove(node);
+            lruList.AddFirst(node);
+            return true;
+        }
+
+        value = default!;
+        return false;
+    }
+
+    public void Add(TKey key, TValue value)
+    {
+        if (cache.TryGetValue(key, out var node))
+        {
+            node.Value = new CacheItem(key, value);
+            lruList.Remove(node);
+            lruList.AddFirst(node);
+            return;
+        }
+
+        if (cache.Count >= capacity)
+        {
+            var lastNode = lruList.Last;
+            if (lastNode != null)
+            {
+                cache.Remove(lastNode.Value.Key);
+                lruList.RemoveLast();
+            }
+        }
+
+        var cacheItem = new CacheItem(key, value);
+        var newNode = new LinkedListNode<CacheItem>(cacheItem);
+        lruList.AddFirst(newNode);
+        cache[key] = newNode;
+    }
+
+    private struct CacheItem
+    {
+        public TKey Key { get; }
+        public TValue Value { get; set; }
+
+        public CacheItem(TKey key, TValue value)
+        {
+            Key = key;
+            Value = value;
+        }
+    }
 }
