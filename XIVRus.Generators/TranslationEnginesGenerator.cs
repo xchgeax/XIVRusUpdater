@@ -27,14 +27,15 @@ public sealed class TranslationEnginesGenerator : IIncrementalGenerator
     private static EngineModel? Extract(GeneratorAttributeSyntaxContext ctx)
     {
         var args = ctx.Attributes[0].ConstructorArguments;
-        if (args.Length != 4) return null;
+        if (args.Length != 5) return null;
 
         var id = args[0].Value as string ?? "";
         var modName = args[1].Value as string ?? "";
         var displayName = args[2].Value as string ?? "";
         var apiUrl = args[3].Value as string ?? "";
+        var formatLiteral = args[4].ToCSharpString();
 
-        return new EngineModel(id, modName, displayName, apiUrl);
+        return new EngineModel(id, modName, displayName, apiUrl, formatLiteral);
     }
 
     private static void Generate(SourceProductionContext context, ImmutableArray<EngineModel> engines)
@@ -49,19 +50,19 @@ public sealed class TranslationEnginesGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine("public static partial class TranslationEngines");
         sb.AppendLine("{");
-        sb.AppendLine("    public static IReadOnlyList<TranslationEngine> All { get; } = new TranslationEngine[]");
+        sb.AppendLine("    public static IReadOnlyList<TranslationEngineDefinition> All { get; } = new TranslationEngineDefinition[]");
         sb.AppendLine("    {");
 
         foreach (var e in engines.OrderBy(e => e.Id, StringComparer.Ordinal))
         {
-            sb.AppendLine($"        new(new({Literal(e.Id)}, {Literal(e.ModName)}, {Literal(e.DisplayName)}, {Literal(e.ApiUrl)})),");
+            sb.AppendLine($"        new({Literal(e.Id)}, {Literal(e.ModName)}, {Literal(e.DisplayName)}, {Literal(e.ApiUrl)}, {e.FormatLiteral}),");
         }
 
         sb.AppendLine("    };");
         sb.AppendLine();
-        sb.AppendLine("    private static IReadOnlyDictionary<string, TranslationEngine> ById { get; } = All.ToDictionary(x => x.Id);");
+        sb.AppendLine("    private static IReadOnlyDictionary<string, TranslationEngineDefinition> ById { get; } = All.ToDictionary(x => x.Id);");
         sb.AppendLine();
-        sb.AppendLine("    public static TranslationEngine? Get(string id) => ById.GetValueOrDefault(id);");
+        sb.AppendLine("    public static TranslationEngineDefinition? Get(string id) => ById.GetValueOrDefault(id);");
         sb.AppendLine("}");
 
         context.AddSource("TranslationEngines.generated.cs", sb.ToString());
@@ -75,16 +76,25 @@ public sealed class TranslationEnginesGenerator : IIncrementalGenerator
         public string ModName { get; }
         public string DisplayName { get; }
         public string ApiUrl { get; }
+        public string FormatLiteral { get; }
 
-        public EngineModel(string id, string modName, string displayName, string apiUrl)
+        public EngineModel(string id, string modName, string displayName, string apiUrl, string formatLiteral)
         {
             Id = id;
             ModName = modName;
             DisplayName = displayName;
             ApiUrl = apiUrl;
+            FormatLiteral = formatLiteral;
         }
 
-        public bool Equals(EngineModel? other) => other is not null && Id == other.Id && ModName == other.ModName && DisplayName == other.DisplayName && ApiUrl == other.ApiUrl;
+        public bool Equals(EngineModel? other) => 
+            other is not null && 
+            Id == other.Id && 
+            ModName == other.ModName && 
+            DisplayName == other.DisplayName && 
+            ApiUrl == other.ApiUrl &&
+            FormatLiteral == other.FormatLiteral;
+
         public override bool Equals(object? obj) => Equals(obj as EngineModel);
         public override int GetHashCode() => Id.GetHashCode();
     }

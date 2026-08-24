@@ -30,9 +30,9 @@ public unsafe class EXDHooks : IDisposable
     private readonly LruCache<nint, ColumnInfo> columnMap = new(capacity: 8192);
     private readonly ReaderWriterLockSlim cacheLock = new();
 
-    public EXDHooks(IGameInteropProvider provider)
+    public EXDHooks(IGameInteropProvider provider, string currentEngine)
     {
-        parser = new TranslationParser();
+        parser = new TranslationParser(currentEngine);
 
         hGetRowById = provider.HookFromAddress<GetRowByIdDelegate>(
             ExcelSheet.MemberFunctionPointers.GetRowById, Detour_GetRowById);
@@ -51,6 +51,8 @@ public unsafe class EXDHooks : IDisposable
 
         EnableAll();
     }
+
+    public void UpdateEngine(string engineId) => parser.UpdateEngine(engineId);
 
     public void EnableAll()
     {
