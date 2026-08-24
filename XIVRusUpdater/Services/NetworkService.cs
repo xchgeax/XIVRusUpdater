@@ -1,8 +1,10 @@
+using Lumina.Excel.Sheets;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Headers;
@@ -10,6 +12,7 @@ using System.Threading.Tasks;
 using XIVRusUpdater.Core.Components;
 using XIVRusUpdater.Models;
 using XIVRusUpdater.Utils.Extentions;
+using XIVRusUpdater.Utils.States;
 using static XIVRusUpdater.Utils.Extentions.HttpClientProgressExtensions;
 
 namespace XIVRusUpdater.Services;
@@ -20,12 +23,6 @@ public class NetworkService
     
     private readonly Plugin plugin;
     
-    public enum AvailabilityStatus
-    {
-        Available,
-        Disabled
-    }
-
     private static HttpClient CreateClient()
     {
         var client = new HttpClient
@@ -45,6 +42,13 @@ public class NetworkService
         return plugin.Configuration.Channel == UpdateChannel.Beta ? $"{engine.ApiUrl}/branches/test" : $"{engine.ApiUrl}/branches/release";
     }
 
+    public string CurrentXRT()
+    {
+        var engine = TranslationEngines.Get(plugin.Configuration.EngineId);
+
+        return $"{engine!.ApiUrl}/branches/xrt";
+    }
+
     public async Task<TranslationManifest?> GetBranchStatus()
     {
         var branch = CurrentBranch();
@@ -55,17 +59,18 @@ public class NetworkService
 
         var status = JsonConvert.DeserializeObject<TranslationManifest>(await responseMessage.Content.ReadAsStringAsync());
 
-        Plugin.State.LastRemoteStatus = status;
-        Plugin.State.LastChangelog = status?.Changelog;
-        return status;
-    }
+        using HttpResponseMessage xrtMessage = await Client.GetAsync(CurrentXRT());
 
-    public async Task<AvailabilityStatus> GetStatusAsync()
-    {
-        var xivstatus = await GetBranchStatus();
+        xrtMessage.EnsureSuccessStatusCode();
 
-        //if (xivstatus?.GameVersion != Plugin.CurrentGameVersion) return AvailabilityStatus.Disabled;
-        return AvailabilityStatus.Available;
+        var xrtStatus = JsonConvert.DeserializeObject<TranslationManifest>(await xrtMessage.Content.ReadAsStringAsync());
+
+        xrtStatus.PenumbraVersion = status.Version;
+        xrtStatus.PenumbraChangelog = status.Changelog;
+        xrtStatus.PenumbraDownloadUrls = status.DownloadUrl;
+
+        Plugin.State.LastRemoteStatus = xrtStatus;
+        return xrtStatus;
     }
 
     public async Task<string?> GetLastRemoteVersionAsync()
@@ -76,14 +81,23 @@ public class NetworkService
         return response.Version;
     }
 
+    public async Task<string?> GetLastRemotePenumbraAsync()
+    {
+        var response = await GetBranchStatus();
+        if (response == null) return null;
+
+        return response.PenumbraVersion;
+    }
+
     public async Task CheckForUpdates()
     {
         Plugin.Log.Information("Update Check started");
         plugin.Configuration.LastUpdateCheck = DateTime.Now;
-
+        
         await RefreshAsync();
 
         plugin.Configuration.LastSuccessfulUpdate = DateTime.Now;
+        plugin.Configuration.Save();
 
         if (!Plugin.State.UpdateAvailable)
             return;
@@ -91,19 +105,20 @@ public class NetworkService
         if (!plugin.Configuration.AutoDownloadUpdates)
             return;
 
-        await DownloadLatestVersionAsync();
+        await DownloadLatestModAsync();
+        await DownloadLatestTranslationAsync();
     }
 
-    public async Task DownloadLatestVersionAsync()
+    public async Task DownloadLatestModAsync()
     {
-        var release = await GetBranchStatus();
+        var release = Plugin.State.LastRemoteStatus;
 
         if(release == null) return;
 
-        if(release.Version != null)
-            plugin.Configuration.LastInstalledVersion = release.Version;
+        if(release.PenumbraVersion != null)
+            plugin.Configuration.LastInstalledPenumbra = release.PenumbraVersion;
         
-        var downloadSource = await GetFastestSource(release.DownloadUrl);
+        var downloadSource = await GetFastestSource(release.PenumbraDownloadUrls);
 
         if (downloadSource == null)
             return;
@@ -112,7 +127,7 @@ public class NetworkService
 
         var tempFile = Path.Combine(Plugin.PenumbraApi.GetDefaultDirectory(), downloadSource.FileName);
 
-        var success = await DownloadModAsync(downloadSource.Url, tempFile);
+        var success = await DownloadRemoteAsync(downloadSource.Url, tempFile, Plugin.State.Penumbra.Download);
 
         if (!success)
             return;
@@ -122,17 +137,98 @@ public class NetworkService
         if (!plugin.Configuration.AutoInstallUpdates)
             return;
 
-        InstallDownloadedVersionAsync(tempFile);
+        InstallDownloadedPenumbraAsync(tempFile);
+        Plugin.State.Penumbra.UpdateAvailable = false;
     }
 
-    public void InstallDownloadedVersionAsync(string filePath)
+    public async Task DownloadLatestTranslationAsync()
+    {
+        var release = Plugin.State.LastRemoteStatus;
+
+        if (release == null) return;
+
+        if (release.Version != null)
+            plugin.Configuration.LastInstalledVersion = release.Version;
+
+        var downloadSource = await GetFastestSource(release.DownloadUrl);
+
+        if (downloadSource == null)
+            return;
+
+        Plugin.Log.Information($"Starting download {downloadSource.FileName} from {downloadSource.Url}...");
+
+        var tempFile = Path.Combine(Path.GetTempPath(), downloadSource.FileName);
+
+        var success = await DownloadRemoteAsync(downloadSource.Url, tempFile, Plugin.State.Translation.Download);
+
+        if (!success)
+            return;
+
+        Plugin.Log.Info($"Downloading {downloadSource.FileName} successful complete");
+
+        await InstallDownloadedVersionAsync(tempFile);
+
+        File.Delete(tempFile);
+        Plugin.State.Translation.UpdateAvailable = false;
+    }
+
+    public async Task InstallDownloadedVersionAsync(string filePath)
+    {
+        var resourceDir = Plugin.HookLayers.parser.GetResourceDir();
+
+        try
+        {
+            await ExtractFirePatchAsync(filePath, resourceDir);
+
+            Plugin.Log.Information($"XIV Rus: firePatch extracted to {resourceDir}");
+        }
+        catch (Exception ex)
+        {
+            Plugin.Log.Error($"XIV Rus: failed to extract patch: {ex}");
+            return;
+        }
+
+        Plugin.Log.Information($"XIV Rus has been extracted to resource path ({resourceDir}).");
+    }
+
+    public void InstallDownloadedPenumbraAsync(string filePath)
     {
         var engine = TranslationEngines.Get(plugin.Configuration.EngineId);
 
-        Plugin.PenumbraApi.DeleteMod(engine.ModName);
+        Plugin.PenumbraApi.DeleteMod(engine!.ModName);
 
         bool isInstall = Plugin.PenumbraApi.InstallMod(filePath);
         Plugin.Log.Information($"XIV Rus has been queued for installation in Penumbra. Status: {isInstall}");
+    }
+
+    private static async Task ExtractFirePatchAsync(string zipPath, string resourceDir)
+    {
+        Directory.CreateDirectory(resourceDir);
+
+        using var archive = ZipFile.OpenRead(zipPath);
+
+        var root = Path.GetFullPath(resourceDir);
+
+        foreach (var entry in archive.Entries)
+        {
+            if (string.IsNullOrEmpty(entry.Name))
+                continue;
+
+            var destinationPath = Path.GetFullPath(Path.Combine(resourceDir, entry.FullName));
+
+            if (!destinationPath.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException($"Invalid path in archive: {entry.FullName}");
+            }
+
+            Directory.CreateDirectory(Path.GetDirectoryName(destinationPath)!);
+
+            using var input = entry.Open();
+
+            await using var output = new FileStream(destinationPath, FileMode.Create, FileAccess.Write, FileShare.None, bufferSize: 1024 * 64, useAsync: true);
+
+            await input.CopyToAsync(output);
+        }
     }
 
     public async Task RefreshAsync()
@@ -141,24 +237,31 @@ public class NetworkService
         {
             var engine = TranslationEngines.Get(plugin.Configuration.EngineId);
 
-            Plugin.State.Availability = await GetStatusAsync();
-
             Plugin.State.PenumbraEnabled = Plugin.PenumbraApi.IsPenumbraEnabled();
-            Plugin.State.ModInstalled = Plugin.PenumbraApi.IsModInstalled(engine.ModName);
+
+            var penumbraManifest = Plugin.State.Penumbra;
+            var translationManifest = Plugin.State.Translation;
+
+            penumbraManifest.Installed = Plugin.PenumbraApi.IsModInstalled(engine!.ModName);
+            translationManifest.Installed = !Plugin.HookLayers.parser.IsResourceEmpty();
     
-            var remote = await GetLastRemoteVersionAsync();
+            var remote = await GetLastRemoteVersionAsync() ?? "Unknown";
 
-            plugin.Configuration.LastKnownRemoteVersion = remote ?? "Unknown";
+            plugin.Configuration.LastKnownRemoteVersion = translationManifest.RemoteVersion = remote;
 
-            string modVersion = Plugin.PenumbraApi.GetModVersion(engine.ModName) ?? "Not installed";
+            Plugin.State.Translation.Version = plugin.Configuration.LastInstalledVersion;
+
+            if (plugin.Configuration.LastInstalledVersion != plugin.Configuration.LastKnownRemoteVersion)
+                Plugin.State.Translation.UpdateAvailable = true;
+
+            remote = await GetLastRemotePenumbraAsync() ?? "Unknown";
+
+            plugin.Configuration.LastKnownRemotePenumbra = penumbraManifest.RemoteVersion = remote;
+
+            plugin.Configuration.LastInstalledPenumbra = Plugin.State.Penumbra.Version = Plugin.PenumbraApi.GetModVersion(engine.ModName) ?? "Not installed";
             
-            Plugin.State.InstalledVersion = modVersion;
-
-            plugin.Configuration.LastInstalledVersion = Plugin.State.InstalledVersion;
-
-            Plugin.State.RemoteVersion = remote ?? "Unknown";
-            
-            Plugin.State.UpdateAvailable = remote != null && remote != Plugin.State.InstalledVersion;
+            if (plugin.Configuration.LastInstalledPenumbra != plugin.Configuration.LastKnownRemotePenumbra)
+                Plugin.State.Penumbra.UpdateAvailable = true;
         }
         catch (Exception ex)
         {
@@ -225,10 +328,8 @@ public class NetworkService
         plugin = pluginRef;
     }
 
-    public async Task<bool> DownloadModAsync(string url, string targetFile)
+    public async Task<bool> DownloadRemoteAsync(string url, string targetFile, DownloadState state)
     {
-        var state = Plugin.State.Download;
-
         state.IsDownloading = true;
         state.CurrentSource = url;
         state.Error = null;
@@ -260,7 +361,6 @@ public class NetworkService
         }
         finally
         {
-            Plugin.State.ShowChangelog = true;
             state.IsDownloading = false;
         }
     }
