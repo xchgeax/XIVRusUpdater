@@ -25,15 +25,11 @@ public class DownloadWindow : Window
     {
         var download = Plugin.State.Penumbra.Download;
 
-        if (download.IsDownloading)
-        {
-            DrawDownloadInfo(download);
-            ImGui.Separator();
-        }
-
+        if (download.IsDownloading) DrawDownloadInfo(download);
+        
         download = Plugin.State.Translation.Download;
 
-        DrawDownloadInfo(download);
+        if (download.IsDownloading) DrawDownloadInfo(download);
     }
 
     private void DrawDownloadInfo(DownloadState download)
