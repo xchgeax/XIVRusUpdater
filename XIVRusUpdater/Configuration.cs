@@ -41,8 +41,10 @@ public class Configuration : IPluginConfiguration
     #region State
 
     public string LastInstalledVersion { get; set; } = string.Empty;
+    public string LastInstalledPenumbra { get; set;  } = string.Empty;
 
     public string LastKnownRemoteVersion { get; set; } = string.Empty;
+    public string LastKnownRemotePenumbra { get; set; } = string.Empty;
 
     public DateTime LastUpdateCheck { get; set; }
 

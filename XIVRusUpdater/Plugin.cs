@@ -103,8 +103,6 @@ public sealed class Plugin : IDalamudPlugin
         Loc.Setup(json, Assembly.GetExecutingAssembly());
     }
 
-    public static string CurrentGameVersion => DataManager.GameData.Repositories["ffxiv"].Version;
-
     public void Dispose()
     {
         PluginInterface.UiBuilder.Draw -= WindowSystem.Draw;
@@ -138,8 +136,8 @@ public sealed class Plugin : IDalamudPlugin
             _ = networkService.CheckForUpdates();
         }
 
-        DownloadWindow.IsOpen = State.Download.Any(x => x.IsDownloading);
-        Changelog.IsOpen = State.Translation.ShowChangelog || State.Penumbra.ShowChangelog;
+        DownloadWindow.IsOpen = State.Penumbra.Download.IsDownloading || State.Translation.Download.IsDownloading;
+        Changelog.IsOpen = State.ShowChangelog;
     }
 
     private void OnLanguageChanged(string lang)

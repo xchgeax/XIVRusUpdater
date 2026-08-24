@@ -7,6 +7,7 @@ using System.Numerics;
 using System.Text;
 using XIVRusUpdater;
 using XIVRusUpdater.Utils;
+using XIVRusUpdater.Utils.States;
 
 namespace XIVRusUpdater.Windows;
 
@@ -22,8 +23,19 @@ public class DownloadWindow : Window
 
     public override void Draw()
     {
-        var download = Plugin.State.Download;
+        var download = Plugin.State.Penumbra.Download;
 
+        DrawDownloadInfo(download);
+
+        ImGui.Separator();
+
+        download = Plugin.State.Translation.Download;
+
+        DrawDownloadInfo(download);
+    }
+
+    private void DrawDownloadInfo(DownloadState download)
+    {
         ImGui.TextWrapped(download.FileName);
 
         ImGui.ProgressBar(
@@ -32,8 +44,8 @@ public class DownloadWindow : Window
 
         ImGui.Spacing();
 
-        ImGui.Text(string.Format(Translations.DownloadProgress, 
-            Math.Round(download.DownloadedBytes / 1024f / 1024f), 
+        ImGui.Text(string.Format(Translations.DownloadProgress,
+            Math.Round(download.DownloadedBytes / 1024f / 1024f),
             Math.Round(download.TotalBytes / 1024f / 1024f)));
 
         ImGui.Text(Translations.DownloadSource);

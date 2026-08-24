@@ -8,16 +8,15 @@ namespace XIVRusUpdater.Utils.States;
 
 public sealed class UpdaterState
 {
-    public List<DownloadState> Download { get; set; } = [];
-
     public TranslationManifest? LastRemoteStatus { get; set; }
-
-    public NetworkService.AvailabilityStatus Availability { get; set; }
-        = NetworkService.AvailabilityStatus.Disabled;
 
     public bool PenumbraEnabled { get; set; }
 
     public ManifestState Translation { get; set; }
 
     public ManifestState Penumbra { get; set; }
+
+    public bool UpdateAvailable => Translation.UpdateAvailable || Penumbra.UpdateAvailable;
+    public bool ShowChangelog => Translation.ShowChangelog || Penumbra.ShowChangelog;
+    public string LastChangelog => $"Translation Changelog: {Translation.LastChangelog}\n\nPenumbra Changelog: {Penumbra.LastChangelog}";
 }

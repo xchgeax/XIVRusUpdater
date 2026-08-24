@@ -14,8 +14,6 @@ public sealed class ChangelogWindow : Window, IDisposable
 {
     private readonly Plugin plugin;
 
-    private readonly ConfirmationPopup reloadPopup = new ConfirmationPopup("ReloadPopup");
-
     public ChangelogWindow(Plugin plugin)
         : base($"{Translations.ChangelogWindowTitle}###XIVRusChangelog")
     {
@@ -52,16 +50,8 @@ public sealed class ChangelogWindow : Window, IDisposable
 
         if (ImGui.Button(Translations.AcceptButton, new Vector2(180, 0)))
         {
-            Plugin.State.ShowChangelog = false;
+            Plugin.State.Penumbra.ShowChangelog = false;
+            Plugin.State.Translation.ShowChangelog = false;
         }
-
-        ImGui.SameLine();
-
-        if (ImGui.Button(Translations.AcceptAndRestartButton, new Vector2(180, 0)))
-        {
-            reloadPopup.Open();
-        }
-
-        reloadPopup.Draw();
     }
 }

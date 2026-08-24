@@ -17,4 +17,6 @@ public sealed class ManifestState
     public bool ShowChangelog { get; set; }
 
     public string? LastChangelog { get; set; }
+
+    public DownloadState Download {  get; init; }
 }
