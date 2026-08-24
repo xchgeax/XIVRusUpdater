@@ -12,9 +12,9 @@ public sealed class UpdaterState
 
     public bool PenumbraEnabled { get; set; }
 
-    public ManifestState Translation { get; set; }
+    public ManifestState Translation { get; set; } = new ManifestState();
 
-    public ManifestState Penumbra { get; set; }
+    public ManifestState Penumbra { get; set; } = new ManifestState();
 
     public bool UpdateAvailable => Translation.UpdateAvailable || Penumbra.UpdateAvailable;
     public bool ShowChangelog => Translation.ShowChangelog || Penumbra.ShowChangelog;

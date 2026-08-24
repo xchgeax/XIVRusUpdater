@@ -26,7 +26,7 @@ public unsafe class EXDHooks : IDisposable
     private delegate IExcelRowWrapper* GetSubRowByDescriptorDelegate(ExcelSheet* sheet, ExcelRowDescriptor* descriptor, uint* outErrorCode);
     private delegate void* ResolveStringColumnIndirectionDelegate(void* columnPtr);
 
-    private readonly TranslationParser parser;
+    public readonly TranslationParser parser;
     private readonly LruCache<nint, ColumnInfo> columnMap = new(capacity: 8192);
     private readonly ReaderWriterLockSlim cacheLock = new();
 

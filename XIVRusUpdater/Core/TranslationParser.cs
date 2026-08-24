@@ -1,5 +1,7 @@
 using Dalamud.Plugin;
 using System;
+using System.IO;
+using System.Linq;
 using XIVRusUpdater.Core.Components;
 using XIVRusUpdater.Core.Resource;
 using XIVRusUpdater.Utils;
@@ -28,13 +30,17 @@ public class TranslationParser : IDisposable
         _CurrentEngineId = engineId;
     }
 
+    public bool IsResourceEmpty() => !Directory.EnumerateFileSystemEntries(_ResourceManager.GetResourceDir()).Any();
+
     private static TranslationResourceManager CreateResourceManager(string engineId)
     {
         var engine = TranslationEngines.Get(engineId)
             ?? throw new ArgumentException($"Unknown translation engine: {engineId}", nameof(engineId));
 
-        return new TranslationResourceManager(Plugin.PluginInterface.AssemblyLocation.Directory!.FullName, engine.Format);
+        return new TranslationResourceManager(Plugin.PluginInterface.AssemblyLocation.Directory!.FullName, engine.Id, engine.Format);
     }
+
+    public string GetResourceDir() => _ResourceManager.GetResourceDir();
 
     public bool TryGetValue(string sheetName, uint RowId, uint Column, out ByteArrayWrapper? translation)
     {

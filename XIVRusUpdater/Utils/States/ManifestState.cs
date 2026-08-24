@@ -18,5 +18,5 @@ public sealed class ManifestState
 
     public string? LastChangelog { get; set; }
 
-    public DownloadState Download {  get; init; }
+    public DownloadState Download {  get; init; } = new DownloadState();
 }

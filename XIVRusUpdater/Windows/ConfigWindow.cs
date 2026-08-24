@@ -201,6 +201,14 @@ public class ConfigWindow : Window, IDisposable
             ImGui.SameLine();
             ImGui.TextDisabled(configuration.LastKnownRemoteVersion);
 
+            ImGui.Text(Translations.InstalledVersionLabel);
+            ImGui.SameLine();
+            ImGui.TextDisabled(configuration.LastInstalledPenumbra);
+
+            ImGui.Text(Translations.LatestVersionLabel);
+            ImGui.SameLine();
+            ImGui.TextDisabled(configuration.LastKnownRemotePenumbra);
+
             ImGui.Text(Translations.LastUpdateCheckLabel);
             ImGui.SameLine();
             ImGui.TextDisabled(configuration.LastUpdateCheck.ToString("g"));
