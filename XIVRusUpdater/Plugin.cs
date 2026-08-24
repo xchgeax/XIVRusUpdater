@@ -49,7 +49,7 @@ public sealed class Plugin : IDalamudPlugin
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         filter = new TranslationFilter();
         filter.Rebuild(Configuration.DisabledComponents);
-        HookLayers = new EXDHooks(interopProvider);
+        HookLayers = new EXDHooks(interopProvider, Configuration.EngineId);
         State = new UpdaterState();
         networkService = new NetworkService(this);
         PenumbraApi = new PenumbraService(PluginInterface);

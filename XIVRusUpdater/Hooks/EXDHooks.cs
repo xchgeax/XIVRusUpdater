@@ -132,7 +132,7 @@ public unsafe class EXDHooks : IDisposable
             cacheLock.ExitReadLock();
         }
 
-        if (Plugin.filter.IsActive(info.SheetName) &&
+        if (Plugin.filter.IsActive(info.SheetName, info.RowId) &&
             parser.TryGetValue(info.SheetName, info.RowId, info.ColumnIndex, out var translation))
         {
             return translation!.Pointer;

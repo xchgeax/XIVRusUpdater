@@ -24,7 +24,7 @@ public sealed class TranslationComponentAttribute : Attribute
     }
 }
 
-public sealed record TranslationComponent(string Id, string DisplayName, string Description, IReadOnlyDictionary<string, int[]> Sheets);
+public sealed record TranslationComponent(string Id, string DisplayName, string Description, IReadOnlyDictionary<string, uint[]> Sheets);
 
 [TranslationComponent("enemy_npc", "Enemy NPCs", "Disable if translated enemy names make it difficult to follow guides or complete quests.")]
 public sealed class EnemyNpcComponent
