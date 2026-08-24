@@ -9,13 +9,13 @@ namespace XIVRusUpdater.Core.Resource.Readers;
 
 internal sealed class XrtResourceFormatReader : IResourceFormatReader
 {
-    private static byte[] Magic = "XRT\0"u8.ToArray();
+    private static readonly byte[] Magic = "XRT\0"u8.ToArray();
 
     public Dictionary<uint, List<ByteArrayWrapper>> Read(Stream stream)
     {
         using var reader = new BinaryReader(stream);
 
-        byte[] magic = reader.ReadBytes(Magic.Length);
+        var magic = reader.ReadBytes(Magic.Length);
 
         if (!magic.AsSpan().SequenceEqual(Magic))
             throw new InvalidDataException("Invalid XRT format.");

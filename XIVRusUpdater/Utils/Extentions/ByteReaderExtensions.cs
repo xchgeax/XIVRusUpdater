@@ -11,7 +11,7 @@ public static class ByteReaderExtensions
     {
         public byte[] ReadStringNullterminated()  
         {
-            List<byte> result = new List<byte>();
+            List<byte> result = [];
 
             byte currentByte;
 
@@ -21,7 +21,7 @@ public static class ByteReaderExtensions
             }
             result.Add((byte) 0x00);
 
-            return result.ToArray();
+            return [.. result];
         }
     }
 }

@@ -12,5 +12,5 @@ public sealed class TranslationManifest
     public string Changelog { get; init; } = "";
 
     [JsonProperty("downloadUrls")] 
-    public List<string> DownloadUrl { get; init; } = new List<string>();
+    public List<string> DownloadUrl { get; init; } = [];
 }

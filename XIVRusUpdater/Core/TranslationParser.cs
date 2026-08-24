@@ -33,13 +33,12 @@ public class TranslationParser : IDisposable
         var engine = TranslationEngines.Get(engineId)
             ?? throw new ArgumentException($"Unknown translation engine: {engineId}", nameof(engineId));
 
-        return new TranslationResourceManager(Plugin.PluginInterface.AssemblyLocation.Directory.FullName, engine.Format);
+        return new TranslationResourceManager(Plugin.PluginInterface.AssemblyLocation.Directory!.FullName, engine.Format);
     }
 
     public bool TryGetValue(string sheetName, uint RowId, uint Column, out ByteArrayWrapper? translation)
     {
         translation = null;
-        ByteArrayWrapper result;
         if (_ResourceManager.TryGet(sheetName, out var xrtFile))
         {
             if (xrtFile.TryGetData(RowId, Column, out var @byte))
