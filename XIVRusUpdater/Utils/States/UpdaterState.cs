@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using XIVRusUpdater.Core.Components;
 using XIVRusUpdater.Models;
 using XIVRusUpdater.Services;
@@ -7,7 +8,7 @@ namespace XIVRusUpdater.Utils.States;
 
 public sealed class UpdaterState
 {
-    public DownloadState Download { get; set; } = new DownloadState();
+    public List<DownloadState> Download { get; set; } = [];
 
     public TranslationManifest? LastRemoteStatus { get; set; }
 
@@ -16,19 +17,7 @@ public sealed class UpdaterState
 
     public bool PenumbraEnabled { get; set; }
 
-    public bool ModInstalled { get; set; }
+    public ManifestState Translation { get; set; }
 
-    public string? InstalledVersion { get; set; }
-
-    public string? RemoteVersion { get; set; }
-
-    public bool UpdateAvailable { get; set; }
-
-    public DateTime LastCheck { get; set; }
-
-    public string? LastError { get; set; }
-
-    public bool ShowChangelog { get; set; }
-
-    public string? LastChangelog { get; set; }
+    public ManifestState Penumbra { get; set; }
 }

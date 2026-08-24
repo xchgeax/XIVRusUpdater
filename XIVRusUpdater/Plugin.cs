@@ -6,6 +6,7 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using XIVRusUpdater.Core;
@@ -137,8 +138,8 @@ public sealed class Plugin : IDalamudPlugin
             _ = networkService.CheckForUpdates();
         }
 
-        DownloadWindow.IsOpen = State.Download.IsDownloading;
-        Changelog.IsOpen = State.ShowChangelog;
+        DownloadWindow.IsOpen = State.Download.Any(x => x.IsDownloading);
+        Changelog.IsOpen = State.Translation.ShowChangelog || State.Penumbra.ShowChangelog;
     }
 
     private void OnLanguageChanged(string lang)
