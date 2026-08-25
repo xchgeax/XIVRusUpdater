@@ -1,22 +1,11 @@
-using CheapLoc;
 using Dalamud.Bindings.ImGui;
-using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Interface.Colors;
-using Dalamud.Interface.Textures;
-using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
-using Lumina.Excel.Sheets;
 using System;
-using System.IO;
-using System.Linq;
 using System.Numerics;
-using System.Reflection;
 using System.Threading.Tasks;
-using XIVRusUpdater.Services;
 using XIVRusUpdater.Utils;
-using XIVRusUpdater.Utils.States;
-using XIVRusUpdater.Windows.Dialogs;
 
 namespace XIVRusUpdater.Windows;
 
