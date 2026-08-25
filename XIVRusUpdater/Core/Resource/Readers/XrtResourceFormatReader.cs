@@ -11,7 +11,7 @@ internal sealed class XrtResourceFormatReader : IResourceFormatReader
 {
     private static readonly byte[] Magic = "XRT\0"u8.ToArray();
 
-    public Dictionary<uint, List<ByteArrayWrapper>> Read(Stream stream)
+    public Dictionary<uint, List<ByteArrayWrapper?>> Read(Stream stream)
     {
         using var reader = new BinaryReader(stream);
 
@@ -27,7 +27,7 @@ internal sealed class XrtResourceFormatReader : IResourceFormatReader
 
         ushort stringColumnCount = reader.ReadUInt16();
 
-        var rows = new Dictionary<uint, List<ByteArrayWrapper>>();
+        var rows = new Dictionary<uint, List<ByteArrayWrapper?>>();
 
 
         while (stream.Position < stream.Length)
@@ -39,7 +39,7 @@ internal sealed class XrtResourceFormatReader : IResourceFormatReader
 
             uint rowId = reader.ReadUInt32();
 
-            var columns = new List<ByteArrayWrapper>(stringColumnCount);
+            var columns = new List<ByteArrayWrapper?>(stringColumnCount);
 
             for (int i = 0; i < stringColumnCount; i++)
             {

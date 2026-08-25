@@ -11,9 +11,9 @@ internal sealed class CsvResourceFormatReader : IResourceFormatReader
 {
     private const string UnsupportedMacroError = "ERROR: Unsupported MacroCode";
 
-    public Dictionary<uint, List<ByteArrayWrapper>> Read(Stream stream)
+    public Dictionary<uint, List<ByteArrayWrapper?>> Read(Stream stream)
     {
-        var rows = new Dictionary<uint, List<ByteArrayWrapper>>();
+        var rows = new Dictionary<uint, List<ByteArrayWrapper?>>();
 
         using var reader = Sep.Reader(o => o with { HasHeader = false })
             .From(stream);
@@ -56,12 +56,14 @@ internal sealed class CsvResourceFormatReader : IResourceFormatReader
                 continue;
             }
 
-            var columns = new List<ByteArrayWrapper>(stringColumnIndices.Count);
+            // columns[i] всегда соответствует i-й строковой колонке из заголовка CSV, даже если значение отсутствует или не удалось распарсить.
+            var columns = new List<ByteArrayWrapper?>(stringColumnIndices.Count);
 
             foreach (var colIdx in stringColumnIndices)
             {
                 if (colIdx >= row.ColCount)
                 {
+                    columns.Add(null);
                     continue;
                 }
 
@@ -70,6 +72,10 @@ internal sealed class CsvResourceFormatReader : IResourceFormatReader
                 if (TryParseMacroString(textSpan, out var bytes))
                 {
                     columns.Add(new ByteArrayWrapper(bytes));
+                }
+                else
+                {
+                    columns.Add(null);
                 }
             }
 

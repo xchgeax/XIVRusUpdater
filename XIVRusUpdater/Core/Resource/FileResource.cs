@@ -9,7 +9,7 @@ namespace XIVRusUpdater.Core.Resource;
 public class FileResource : IDisposable
 {
     // RowId -> String Columns Allocation
-    public Dictionary<uint, List<ByteArrayWrapper>> Rows { get; init;  }
+    public Dictionary<uint, List<ByteArrayWrapper?>> Rows { get; init;  }
 
     private static readonly Dictionary<ResourceFormat, Func<IResourceFormatReader>> Readers = new()
     {
@@ -50,7 +50,7 @@ public class FileResource : IDisposable
             return false;
 
         value = row[(int)column];
-        return true;
+        return value is not null;
     }
 
     public void Dispose()
@@ -59,7 +59,7 @@ public class FileResource : IDisposable
         {
             foreach(var col in Columns)
             {
-                col.Dispose();
+                col?.Dispose();
             }
         }
 
