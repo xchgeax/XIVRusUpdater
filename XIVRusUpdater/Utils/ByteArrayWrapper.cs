@@ -23,7 +23,7 @@ public unsafe class ByteArrayWrapper : IDisposable
         if (Length == 0)
             return;
 
-        Pointer = (byte*)Marshal.AllocHGlobal(Length + 1);
+        Pointer = (byte*)Marshal.AllocHGlobal(Length);
 
         fixed (byte* src = bytes)
         {
