@@ -1,5 +1,6 @@
 using Dalamud.Plugin;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using XIVRusUpdater.Core.Components;
@@ -10,6 +11,9 @@ namespace XIVRusUpdater.Core;
 
 public class TranslationParser : IDisposable
 {
+    private readonly object syncRoot = new();
+    // TODO: обязательный перезапуск игры при смене движка в релизе?
+    private readonly List<TranslationResourceManager> retiredResourceManagers = new();
     private TranslationResourceManager _ResourceManager { get; set; }
     private string _CurrentEngineId { get; set; }
 
@@ -21,16 +25,35 @@ public class TranslationParser : IDisposable
 
     public void UpdateEngine(string engineId)
     {
-        if (engineId == _CurrentEngineId) return;
+        lock (syncRoot)
+        {
+            if (engineId == _CurrentEngineId)
+                return;
+        }
 
         var newManager = CreateResourceManager(engineId);
 
-        _ResourceManager.Dispose();
-        _ResourceManager = newManager;
-        _CurrentEngineId = engineId;
+        lock (syncRoot)
+        {
+            if (engineId == _CurrentEngineId)
+            {
+                newManager.Dispose();
+                return;
+            }
+
+            retiredResourceManagers.Add(_ResourceManager);
+            _ResourceManager = newManager;
+            _CurrentEngineId = engineId;
+        }
     }
 
-    public bool IsResourceEmpty() => !Directory.EnumerateFileSystemEntries(_ResourceManager.GetResourceDir()).Any();
+    public bool IsResourceEmpty()
+    {
+        lock (syncRoot)
+        {
+            return !Directory.EnumerateFileSystemEntries(_ResourceManager.GetResourceDir()).Any();
+        }
+    }
 
     private static TranslationResourceManager CreateResourceManager(string engineId)
     {
@@ -40,24 +63,42 @@ public class TranslationParser : IDisposable
         return new TranslationResourceManager(Plugin.PluginInterface.AssemblyLocation.Directory!.FullName, engine.Id, engine.Format);
     }
 
-    public string GetResourceDir() => _ResourceManager.GetResourceDir();
+    public string GetResourceDir()
+    {
+        lock (syncRoot)
+        {
+            return _ResourceManager.GetResourceDir();
+        }
+    }
 
     public bool TryGetValue(string sheetName, uint RowId, uint Column, out ByteArrayWrapper? translation)
     {
-        translation = null;
-        if (_ResourceManager.TryGet(sheetName, out var xrtFile))
+        lock (syncRoot)
         {
-            if (xrtFile.TryGetData(RowId, Column, out var @byte))
+            translation = null;
+            if (_ResourceManager.TryGet(sheetName, out var fileResource))
             {
-                translation = @byte;
-                return true;
+                if (fileResource.TryGetData(RowId, Column, out var @byte))
+                {
+                    translation = @byte;
+                    return true;
+                }
             }
+
+            return false;
         }
-        return false;
     }
 
     public void Dispose()
     {
-        _ResourceManager.Dispose();
+        lock (syncRoot)
+        {
+            _ResourceManager.Dispose();
+
+            foreach (var manager in retiredResourceManagers)
+                manager.Dispose();
+
+            retiredResourceManagers.Clear();
+        }
     }
 }
