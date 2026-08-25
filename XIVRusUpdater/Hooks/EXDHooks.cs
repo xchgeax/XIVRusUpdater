@@ -1,11 +1,12 @@
 using Dalamud.Hooking;
 using Dalamud.Plugin.Services;
 using FFXIVClientStructs.FFXIV.Common.Component.Excel;
+using FFXIVClientStructs.FFXIV.Client.UI.Misc;
 using FFXIVClientStructs.FFXIV.Component.Excel;
 using Serilog;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Threading;
 using XIVRusUpdater.Core;
 using XIVRusUpdater.Utils;
 using XIVRusUpdater.Utils.Extentions;
@@ -14,124 +15,182 @@ namespace XIVRusUpdater.Hooks;
 
 public unsafe class EXDHooks : IDisposable
 {
-    private readonly Hook<GetRowByIdDelegate> hGetRowById = null!;
-    private readonly Hook<GetRowByIndexDelegate> hGetRowByIndex = null!;
-    private readonly Hook<GetRowByDescriptorDelegate> hGetRowByDescriptor = null!;
-    private readonly Hook<GetSubRowByDescriptorDelegate> hGetSubRowByDescriptor = null!;
-    private readonly Hook<ResolveStringColumnIndirectionDelegate> hResolveIndirection = null!;
+    private const string AddonSheetName = "Addon";
+
+    private Hook<GetRowByIdDelegate> getRowByIdHook = null!;
+    private Hook<GetRowByIndexDelegate> getRowByIndexHook = null!;
+    private Hook<GetRowByDescriptorDelegate> getRowByDescriptorHook = null!;
+    private Hook<GetSubRowByDescriptorDelegate> getSubRowByDescriptorHook = null!;
+    private Hook<ResolveStringColumnIndirectionDelegate> resolveIndirectionHook = null!;
+    private Hook<FormatAddonTextApplyDelegate> formatAddonTextApplyHook = null!;
 
     private delegate IExcelRowWrapper* GetRowByIndexDelegate(ExcelSheet* sheet, uint rowIndex, ExcelRowDescriptor* descriptor);
     private delegate IExcelRowWrapper* GetRowByIdDelegate(ExcelSheet* sheet, uint rowId, uint* outErrorCode = null);
     private delegate IExcelRowWrapper* GetRowByDescriptorDelegate(ExcelSheet* sheet, ExcelRowDescriptor* descriptor, uint* outErrorCode);
     private delegate IExcelRowWrapper* GetSubRowByDescriptorDelegate(ExcelSheet* sheet, ExcelRowDescriptor* descriptor, uint* outErrorCode);
     private delegate void* ResolveStringColumnIndirectionDelegate(void* columnPtr);
+    private delegate byte* FormatAddonTextApplyDelegate(
+        RaptureTextModule* module,
+        uint addonId,
+        uint mode,
+        void* localParameters,
+        void* formatBuffer,
+        void* normalizationBuffer);
 
-    private readonly TranslationParser parser;
-    private readonly LruCache<nint, ColumnInfo> columnMap = new(capacity: 8192);
-    private readonly ReaderWriterLockSlim cacheLock = new();
+    [ThreadStatic]
+    private static uint? currentAddonId;
+
+    private readonly TranslationParser translationParser;
+    private readonly LruCache<nint, ColumnInfo> columnMap = new(capacity: 65536);
+    private readonly ConcurrentDictionary<nint, uint[]> stringColumnIndicesMap = new();
 
     public EXDHooks(IGameInteropProvider provider)
     {
-        parser = new TranslationParser();
+        translationParser = new TranslationParser();
+        InitializeHooks(provider);
+        EnableAll();
+    }
 
-        hGetRowById = provider.HookFromAddress<GetRowByIdDelegate>(
+    private void InitializeHooks(IGameInteropProvider provider)
+    {
+        getRowByIdHook = provider.HookFromAddress<GetRowByIdDelegate>(
             ExcelSheet.MemberFunctionPointers.GetRowById, Detour_GetRowById);
 
-        hGetRowByIndex = provider.HookFromAddress<GetRowByIndexDelegate>(
+        getRowByIndexHook = provider.HookFromAddress<GetRowByIndexDelegate>(
             ExcelSheet.MemberFunctionPointers.GetRowByIndex, Detour_GetRowByIndex);
 
-        hGetRowByDescriptor = provider.HookFromAddress<GetRowByDescriptorDelegate>(
+        getRowByDescriptorHook = provider.HookFromAddress<GetRowByDescriptorDelegate>(
             ExcelSheet.MemberFunctionPointers.GetRowByDescriptor, Detour_GetRowByDescriptor);
 
-        hGetSubRowByDescriptor = provider.HookFromAddress<GetSubRowByDescriptorDelegate>(
+        getSubRowByDescriptorHook = provider.HookFromAddress<GetSubRowByDescriptorDelegate>(
             ExcelSheet.MemberFunctionPointers.GetSubRowByDescriptor, Detour_GetSubRowByDescriptor);
 
-        hResolveIndirection = provider.HookFromAddress<ResolveStringColumnIndirectionDelegate>(
+        resolveIndirectionHook = provider.HookFromAddress<ResolveStringColumnIndirectionDelegate>(
             ExcelRow.MemberFunctionPointers.ResolveStringColumnIndirection, Detour_ResolveStringColumnIndirection);
 
-        EnableAll();
+        formatAddonTextApplyHook = provider.HookFromAddress<FormatAddonTextApplyDelegate>(
+            RaptureTextModule.MemberFunctionPointers.FormatAddonTextApply,
+            Detour_FormatAddonTextApply);
     }
 
     public void EnableAll()
     {
-        hGetRowById.Enable();
-        hGetRowByIndex.Enable();
-        hGetRowByDescriptor.Enable();
-        hGetSubRowByDescriptor.Enable();
-        hResolveIndirection.Enable();
+        getRowByIdHook.Enable();
+        getRowByIndexHook.Enable();
+        getRowByDescriptorHook.Enable();
+        getSubRowByDescriptorHook.Enable();
+        resolveIndirectionHook.Enable();
+        formatAddonTextApplyHook.Enable();
     }
 
     public void DisableAll()
     {
-        hGetRowById.Disable();
-        hGetRowByIndex.Disable();
-        hGetRowByDescriptor.Disable();
-        hGetSubRowByDescriptor.Disable();
-        hResolveIndirection.Disable();
+        getRowByIdHook.Disable();
+        getRowByIndexHook.Disable();
+        getRowByDescriptorHook.Disable();
+        getSubRowByDescriptorHook.Disable();
+        resolveIndirectionHook.Disable();
+        formatAddonTextApplyHook.Disable();
     }
 
     public void Dispose()
     {
         DisableAll();
+        DisposeHooks();
 
-        hGetRowById.Dispose();
-        hGetRowByIndex.Dispose();
-        hGetRowByDescriptor.Dispose();
-        hGetSubRowByDescriptor.Dispose();
-        hResolveIndirection.Dispose();
+        translationParser.Dispose();
+    }
 
-        parser.Dispose();
-        cacheLock.Dispose();
+    private void DisposeHooks()
+    {
+        getRowByIdHook.Dispose();
+        getRowByIndexHook.Dispose();
+        getRowByDescriptorHook.Dispose();
+        getSubRowByDescriptorHook.Dispose();
+        resolveIndirectionHook.Dispose();
+        formatAddonTextApplyHook.Dispose();
     }
 
     private IExcelRowWrapper* Detour_GetRowById(ExcelSheet* sheet, uint rowId, uint* outErrorCode)
     {
-        var result = hGetRowById.Original(sheet, rowId, outErrorCode);
-        PopulateRowMap(result, sheet, rowId: rowId, descriptor: null, source: nameof(Detour_GetRowById));
+        var result = getRowByIdHook.Original(sheet, rowId, outErrorCode);
+        PopulateRowMap(result, sheet, rowId, nameof(Detour_GetRowById));
         return result;
     }
 
     private IExcelRowWrapper* Detour_GetRowByIndex(ExcelSheet* sheet, uint rowIndex, ExcelRowDescriptor* descriptor)
     {
-        var result = hGetRowByIndex.Original(sheet, rowIndex, descriptor);
-        PopulateRowMap(result, sheet, rowId: null, descriptor: descriptor, source: nameof(Detour_GetRowByIndex));
+        var result = getRowByIndexHook.Original(sheet, rowIndex, descriptor);
+        PopulateRowMap(result, sheet, GetRowId(descriptor), nameof(Detour_GetRowByIndex));
         return result;
     }
 
     private IExcelRowWrapper* Detour_GetRowByDescriptor(ExcelSheet* sheet, ExcelRowDescriptor* descriptor, uint* outErrorCode)
     {
-        var result = hGetRowByDescriptor.Original(sheet, descriptor, outErrorCode);
-        // TODO: вероятнее всего не вызывается в нужных нам местах
-        //PopulateRowMap(result, sheet, rowId: null, descriptor: descriptor, source: nameof(Detour_GetRowByDescriptor));
+        var result = getRowByDescriptorHook.Original(sheet, descriptor, outErrorCode);
+        PopulateRowMap(result, sheet, GetRowId(descriptor), nameof(Detour_GetRowByDescriptor));
         return result;
     }
 
     private IExcelRowWrapper* Detour_GetSubRowByDescriptor(ExcelSheet* sheet, ExcelRowDescriptor* descriptor, uint* outErrorCode)
     {
-        var result = hGetSubRowByDescriptor.Original(sheet, descriptor, outErrorCode);
-        PopulateRowMap(result, sheet, rowId: null, descriptor: descriptor, source: nameof(Detour_GetSubRowByDescriptor));
+        var result = getSubRowByDescriptorHook.Original(sheet, descriptor, outErrorCode);
+        PopulateRowMap(result, sheet, GetRowId(descriptor), nameof(Detour_GetSubRowByDescriptor));
         return result;
+    }
+
+    private static uint? GetRowId(ExcelRowDescriptor* descriptor)
+    {
+        return descriptor is null ? null : descriptor->RowId;
+    }
+
+    private byte* Detour_FormatAddonTextApply(
+        RaptureTextModule* module,
+        uint addonId,
+        uint mode,
+        void* localParameters,
+        void* formatBuffer,
+        void* normalizationBuffer)
+    {
+        var previousAddonId = currentAddonId;
+        currentAddonId = addonId;
+
+        try
+        {
+            return formatAddonTextApplyHook.Original(
+                module,
+                addonId,
+                mode,
+                localParameters,
+                formatBuffer,
+                normalizationBuffer);
+        }
+        finally
+        {
+            currentAddonId = previousAddonId;
+        }
     }
 
     private void* Detour_ResolveStringColumnIndirection(void* columnPtr)
     {
-        var result = hResolveIndirection.Original(columnPtr);
-        nint ptr = (nint)columnPtr;
+        var result = resolveIndirectionHook.Original(columnPtr);
 
-        ColumnInfo info;
-        cacheLock.EnterReadLock();
-        try
+        if (currentAddonId is uint addonId)
         {
-            if (!columnMap.TryGetValue(ptr, out info))
-                return result;
+            currentAddonId = null;
+
+            if (Plugin.filter.IsActive(AddonSheetName) &&
+                translationParser.TryGetValue(AddonSheetName, addonId, 0, out var addonTranslation))
+            {
+                return addonTranslation!.Pointer;
+            }
         }
-        finally
-        {
-            cacheLock.ExitReadLock();
-        }
+
+        if (!TryGetColumnInfo((nint)columnPtr, out var info))
+            return result;
 
         if (Plugin.filter.IsActive(info.SheetName) &&
-            parser.TryGetValue(info.SheetName, info.RowId, info.ColumnIndex, out var translation))
+            translationParser.TryGetValue(info.SheetName, info.RowId, info.ColumnIndex, out var translation))
         {
             return translation!.Pointer;
         }
@@ -139,61 +198,120 @@ public unsafe class EXDHooks : IDisposable
         return result;
     }
 
+    private bool TryGetColumnInfo(nint columnPtr, out ColumnInfo info)
+        => columnMap.TryGetValue(columnPtr, out info);
+
     private void PopulateRowMap(
         IExcelRowWrapper* wrapper,
         ExcelSheet* sheet,
         uint? rowId,
-        ExcelRowDescriptor* descriptor,
         string source)
     {
-        if (wrapper == null || wrapper->Row == null)
+        if (!TryGetRowContext(wrapper, sheet, out var row, out var activeSheet, out var sheetName))
             return;
 
-        ExcelRow* row = wrapper->Row;
-        ExcelSheet* activeSheet = row->Sheet != null ? row->Sheet : sheet;
-
-        if (activeSheet == null)
+        if (currentAddonId is not null &&
+            string.Equals(sheetName, AddonSheetName, StringComparison.Ordinal))
+        {
             return;
+        }
 
-        string sheetName = activeSheet->SheetName.ToString();
-        if (string.IsNullOrEmpty(sheetName))
-            return;
+        uint resolvedRowId = rowId ?? 0;
 
-        uint resolvedRowId = rowId ?? (descriptor != null ? descriptor->RowId : 0);
-
-        uint columnCount = activeSheet->ColumnCount;
-        ref readonly var sheetRef = ref *activeSheet;
-
-        cacheLock.EnterWriteLock();
         try
         {
-            for (uint columnIndex = 0; columnIndex < columnCount; columnIndex++)
+            var stringColumnIndices = GetStringColumnIndices(activeSheet);
+            for (uint columnIndex = 0; columnIndex < stringColumnIndices.Length; columnIndex++)
             {
-                int stringColumnIndex = sheetRef.ToStringColumnIndex(columnIndex);
-                if (stringColumnIndex < 0)
-                    continue;
-
-                void* columnPtr = row->GetColumnPtr(columnIndex);
+                uint globalColumnIndex = stringColumnIndices[columnIndex];
+                void* columnPtr = row->GetColumnPtr(globalColumnIndex);
                 if (columnPtr == null)
                     continue;
 
-                columnMap.Add((nint)columnPtr, new ColumnInfo(
-                    Supplier: source,
-                    RowId: resolvedRowId,
-                    ColumnIndex: (uint)stringColumnIndex,
-                    SheetIndex: activeSheet->SheetIndex,
-                    SheetName: sheetName
-                ));
+                TryAddColumnToCache(
+                    columnPtr,
+                    source,
+                    resolvedRowId,
+                    columnIndex,
+                    activeSheet->SheetIndex,
+                    sheetName);
             }
         }
         catch (Exception ex)
         {
             Log.Warning(ex, $"[{source}] Failed to populate column cache for sheet '{sheetName}'.");
         }
-        finally
+    }
+
+    private static bool TryGetRowContext(
+        IExcelRowWrapper* wrapper,
+        ExcelSheet* fallbackSheet,
+        out ExcelRow* row,
+        out ExcelSheet* activeSheet,
+        out string sheetName)
+    {
+        row = wrapper == null ? null : wrapper->Row;
+        activeSheet = row == null
+            ? null
+            : row->Sheet != null ? row->Sheet : fallbackSheet;
+        sheetName = activeSheet == null ? string.Empty : activeSheet->SheetName.ToString();
+
+        return row != null && activeSheet != null && !string.IsNullOrEmpty(sheetName);
+    }
+
+    private void TryAddColumnToCache(
+        void* columnPtr,
+        string source,
+        uint rowId,
+        uint columnIndex,
+        uint sheetIndex,
+        string sheetName)
+    {
+        var columnInfo = new ColumnInfo(
+            Supplier: source,
+            RowId: rowId,
+            ColumnIndex: columnIndex,
+            SheetIndex: sheetIndex,
+            SheetName: sheetName);
+
+        columnMap.TryAdd((nint)columnPtr, columnInfo);
+    }
+
+    /// <summary>
+    /// Возвращает глобальные индексы текстовых колонок листа.
+    /// Список строится один раз и кэшируется, чтобы PopulateRowMap не выполнял
+    /// повторный поиск типа и строкового индекса для каждой колонки каждой строки.
+    /// В результате схема листа обходится один раз, а последующие строки проходят
+    /// только по текстовым колонкам.
+    /// </summary>
+    /// <remarks>
+    /// stringColumnIndicesMap имеет структуру Dictionary&lt;nint, uint[]&gt;:
+    /// ключом является адрес ExcelSheet, а значением — упорядоченный массив
+    /// глобальных индексов только текстовых колонок. Позиция элемента в массиве
+    /// одновременно является его строковым индексом: например, значение [2, 5, 8]
+    /// означает, что глобальная колонка 5 является второй текстовой колонкой.
+    /// </remarks>
+    private uint[] GetStringColumnIndices(ExcelSheet* sheet)
+    {
+        nint sheetPtr = (nint)sheet;
+        if (stringColumnIndicesMap.TryGetValue(sheetPtr, out var indices))
+            return indices;
+
+        indices = BuildStringColumnIndices(sheet);
+        return stringColumnIndicesMap.GetOrAdd(sheetPtr, indices);
+    }
+
+    private static uint[] BuildStringColumnIndices(ExcelSheet* sheet)
+    {
+        var columns = sheet->ColumnDefinitionSpan;
+        var stringColumnIndices = new List<uint>();
+        for (uint index = 0; index < (uint)columns.Length; index++)
         {
-            cacheLock.ExitWriteLock();
+            if (columns[(int)index].Type == (ushort)ExcelColumnType.String)
+                stringColumnIndices.Add(index);
         }
+
+        return stringColumnIndices.ToArray();
     }
 }
 
