@@ -2,6 +2,9 @@
   <Configurations>
     <Platform Name="x64" />
   </Configurations>
+  <Project Path="OtterGui/OtterGui.csproj">
+    <Platform Project="x64" />
+  </Project>
   <Project Path="XIVRus.Generators/XIVRus.Generators.csproj" Id="ffc01064-c12d-44ab-903e-66b0fd4d32d9" />
   <Project Path="XIVRusUpdater/XIVRusUpdater.csproj">
     <Platform Project="x64" />
