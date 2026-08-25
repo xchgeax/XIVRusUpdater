@@ -4,6 +4,7 @@ using nietras.SeparatedValues;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using XIVRusUpdater.Core.Resource;
 using XIVRusUpdater.Core.Resource.Readers;
 using XIVRusUpdater.Utils;
 
@@ -15,77 +16,96 @@ internal sealed class CsvResourceFormatReader : IResourceFormatReader
     {
         var rows = new Dictionary<uint, List<ByteArrayWrapper?>>();
 
-        using var reader = Sep.Reader(o => o with { HasHeader = false })
-            .From(stream);
-
-        List<int>? stringColumnIndices = null;
-
-        foreach (var row in reader)
+        try
         {
-            if (row.ColCount == 0)
+            using var reader = Sep.Reader(o => o with { HasHeader = false })
+                .From(stream);
+
+            List<int>? stringColumnIndices = null;
+
+            foreach (var row in reader)
             {
-                continue;
-            }
-
-            var firstCol = row[0].Span;
-
-            if (IsServiceRow(firstCol))
-            {
-                continue;
-            }
-
-            if (firstCol.SequenceEqual("Int32"))
-            {
-                stringColumnIndices = new List<int>();
-
-                for (var i = 0; i < row.ColCount; i++)
+                if (row.ColCount == 0)
                 {
-                    if (row[i].Span.SequenceEqual("String"))
-                    {
-                        stringColumnIndices.Add(i);
-                    }
-                }
-
-                continue;
-            }
-
-            if (stringColumnIndices is null ||
-                !int.TryParse(firstCol, out var parsedRowId) ||
-                parsedRowId < 0)
-            {
-                continue;
-            }
-
-            // columns[i] всегда соответствует i-й строковой колонке из заголовка CSV, даже если значение отсутствует или не удалось распарсить.
-            var columns = new List<ByteArrayWrapper?>(stringColumnIndices.Count);
-
-            foreach (var colIdx in stringColumnIndices)
-            {
-                if (colIdx >= row.ColCount)
-                {
-                    columns.Add(null);
                     continue;
                 }
 
-                var textSpan = row[colIdx].Span.Trim('"');
+                var firstCol = row[0].Span;
 
-                if (TryParseMacroString(textSpan, out var bytes))
+                if (IsServiceRow(firstCol))
                 {
-                    columns.Add(new ByteArrayWrapper(bytes));
+                    continue;
                 }
-                else
+
+                if (firstCol.SequenceEqual("Int32"))
                 {
-                    columns.Add(null);
+                    stringColumnIndices = new List<int>();
+
+                    for (var i = 0; i < row.ColCount; i++)
+                    {
+                        if (row[i].Span.SequenceEqual("String"))
+                        {
+                            stringColumnIndices.Add(i);
+                        }
+                    }
+
+                    continue;
+                }
+
+                if (stringColumnIndices is null ||
+                    !int.TryParse(firstCol, out var parsedRowId) ||
+                    parsedRowId < 0)
+                {
+                    continue;
+                }
+
+                // columns[i] всегда соответствует i-й строковой колонке из заголовка CSV, даже если значение отсутствует или не удалось распарсить.
+                var columns = new List<ByteArrayWrapper?>(stringColumnIndices.Count);
+
+                try
+                {
+                    foreach (var colIdx in stringColumnIndices)
+                    {
+                        if (colIdx >= row.ColCount)
+                        {
+                            columns.Add(null);
+                            continue;
+                        }
+
+                        var textSpan = row[colIdx].Span.Trim('"');
+
+                        if (TryParseMacroString(textSpan, out var bytes))
+                        {
+                            columns.Add(new ByteArrayWrapper(bytes));
+                        }
+                        else
+                        {
+                            columns.Add(null);
+                        }
+                    }
+
+                    if (rows.ContainsKey((uint)parsedRowId))
+                    {
+                        FileResource.DisposeColumns(columns);
+                        continue;
+                    }
+
+                    rows.Add((uint)parsedRowId, columns);
+                }
+                catch
+                {
+                    FileResource.DisposeColumns(columns);
+                    throw;
                 }
             }
 
-            if (columns.Count > 0)
-            {
-                rows[(uint)parsedRowId] = columns;
-            }
+            return rows;
         }
-
-        return rows;
+        catch
+        {
+            FileResource.DisposeRows(rows);
+            throw;
+        }
     }
 
     private static bool IsServiceRow(ReadOnlySpan<char> firstColumn) =>

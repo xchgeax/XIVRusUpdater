@@ -55,14 +55,21 @@ public class FileResource : IDisposable
 
     public void Dispose()
     {
-        foreach(var (RowId, Columns) in Rows)
-        {
-            foreach(var col in Columns)
-            {
-                col?.Dispose();
-            }
-        }
-
+        DisposeRows(Rows);
         Rows.Clear();
+    }
+
+    internal static void DisposeRows(Dictionary<uint, List<ByteArrayWrapper?>> rows)
+    {
+        foreach (var (_, columns) in rows)
+        {
+            DisposeColumns(columns);
+        }
+    }
+
+    internal static void DisposeColumns(IEnumerable<ByteArrayWrapper?> columns)
+    {
+        foreach (var column in columns)
+            column?.Dispose();
     }
 }

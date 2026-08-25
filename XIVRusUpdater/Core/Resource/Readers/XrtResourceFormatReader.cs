@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using XIVRusUpdater.Core.Resource;
 using XIVRusUpdater.Utils;
 using XIVRusUpdater.Utils.Extentions;
 
@@ -13,43 +14,64 @@ internal sealed class XrtResourceFormatReader : IResourceFormatReader
 
     public Dictionary<uint, List<ByteArrayWrapper?>> Read(Stream stream)
     {
-        using var reader = new BinaryReader(stream);
-
-        var magic = reader.ReadBytes(Magic.Length);
-
-        if (!magic.AsSpan().SequenceEqual(Magic))
-            throw new InvalidDataException("Invalid XRT format.");
-
-        ushort version = reader.ReadUInt16();
-
-        if (version != 1)
-            throw new InvalidDataException($"Unsupported XRT version: {version}");
-
-        ushort stringColumnCount = reader.ReadUInt16();
-
         var rows = new Dictionary<uint, List<ByteArrayWrapper?>>();
 
-
-        while (stream.Position < stream.Length)
+        try
         {
-            long remain = stream.Length - stream.Position;
+            using var reader = new BinaryReader(stream);
 
-            if (remain < sizeof(uint))
-                throw new InvalidDataException("Incomplete XRT row header.");
+            var magic = reader.ReadBytes(Magic.Length);
 
-            uint rowId = reader.ReadUInt32();
+            if (!magic.AsSpan().SequenceEqual(Magic))
+                throw new InvalidDataException("Invalid XRT format.");
 
-            var columns = new List<ByteArrayWrapper?>(stringColumnCount);
+            ushort version = reader.ReadUInt16();
 
-            for (int i = 0; i < stringColumnCount; i++)
+            if (version != 1)
+                throw new InvalidDataException($"Unsupported XRT version: {version}");
+
+            ushort stringColumnCount = reader.ReadUInt16();
+
+            while (stream.Position < stream.Length)
             {
-                byte[] value = reader.ReadStringNullterminated();
-                columns.Add(new ByteArrayWrapper(value));
+                long remain = stream.Length - stream.Position;
+
+                if (remain < sizeof(uint))
+                    throw new InvalidDataException("Incomplete XRT row header.");
+
+                uint rowId = reader.ReadUInt32();
+
+                var columns = new List<ByteArrayWrapper?>(stringColumnCount);
+
+                try
+                {
+                    for (int i = 0; i < stringColumnCount; i++)
+                    {
+                        byte[] value = reader.ReadStringNullterminated();
+                        columns.Add(new ByteArrayWrapper(value));
+                    }
+
+                    if (rows.ContainsKey(rowId))
+                    {
+                        FileResource.DisposeColumns(columns);
+                        continue;
+                    }
+
+                    rows.Add(rowId, columns);
+                }
+                catch
+                {
+                    FileResource.DisposeColumns(columns);
+                    throw;
+                }
             }
 
-            rows.Add(rowId, columns);
+            return rows;
         }
-
-        return rows;
+        catch
+        {
+            FileResource.DisposeRows(rows);
+            throw;
+        }
     }
 }
