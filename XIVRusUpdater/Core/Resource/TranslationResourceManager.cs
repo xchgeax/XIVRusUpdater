@@ -47,17 +47,7 @@ public sealed class TranslationResourceManager : IDisposable
     }
 
     public bool TryGet(string sheetName, out FileResource data)
-    {
-        if (_cache.TryGetValue(sheetName, out data)) 
-            return true;
-        
-        var path = ToPath(sheetName);
-        if (!File.Exists(path)) 
-            return false;
-
-        _cache[sheetName] = data = new FileResource(path);
-        return true;
-    }
+        => _cache.TryGetValue(sheetName, out data);
 
     public bool HasSheet(string sheetName) => File.Exists(ToPath(sheetName));
 
