@@ -3,31 +3,11 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using XIVRusUpdater.Core.Resource;
 
 namespace XIVRusUpdater.Core.Components;
 
 public static partial class TranslationEngines;
-
-public sealed class TranslationEngine
-{
-    public TranslationEngineDefinition Definition { get; }
-
-    public string Id => Definition.Id;
-    public string ModName => Definition.ModName;
-    public string DisplayName => Definition.DisplayName;
-    public string ApiUrl => Definition.ApiUrl;
-
-    public DirectoryInfo? ModPath =>
-        Plugin.PenumbraApi.GetModPath(ModName);
-
-    public string Version =>
-        Plugin.PenumbraApi.GetModVersion(ModName) ?? "0.0.0";
-
-    public TranslationEngine(TranslationEngineDefinition definition)
-    {
-        Definition = definition;
-    }
-}
 
 [AttributeUsage(AttributeTargets.Class)]
 public sealed class TranslationEngineDefinition : Attribute
@@ -36,18 +16,20 @@ public sealed class TranslationEngineDefinition : Attribute
     public string ModName { get; }
     public string DisplayName { get; }
     public string ApiUrl { get; }
+    public ResourceFormat Format { get; }
 
-    public TranslationEngineDefinition(string id, string modName, string dispayName, string api)
+    public TranslationEngineDefinition(string id, string modName, string dispayName, string api, ResourceFormat format)
     {
         Id = id;
         ModName = modName;
         DisplayName = dispayName;
         ApiUrl = api;
+        Format = format;
     }
 }
 
-[TranslationEngineDefinition("XIVRusJapanese", "XIV Rus", "XIVRus — Japanese", "https://update.xivrus.ru/api/jp/")]
+[TranslationEngineDefinition("XIVRusJapanese", "XIV Rus", "XIVRus — Japanese", "https://update.xivrus.ru/api/jp/", ResourceFormat.Xrt)]
 public sealed class XIVRusJapaneseEngine;
 
-[TranslationEngineDefinition("XIVRusEnglish", "XIV Rus", "XIVRus — English", "https://update.xivrus.ru/api")]
+[TranslationEngineDefinition("XIVRusEnglish", "XIV Rus", "XIVRus — English", "https://update.xivrus.ru/api", ResourceFormat.Xrt)]
 public sealed class XIVRusEnglishEngine;

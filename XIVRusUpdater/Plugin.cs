@@ -6,6 +6,7 @@ using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using XIVRusUpdater.Core;
@@ -49,7 +50,7 @@ public sealed class Plugin : IDalamudPlugin
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         filter = new TranslationFilter();
         filter.Rebuild(Configuration.DisabledComponents);
-        HookLayers = new EXDHooks(interopProvider);
+        HookLayers = new EXDHooks(interopProvider, Configuration.EngineId);
         State = new UpdaterState();
         networkService = new NetworkService(this);
         PenumbraApi = new PenumbraService(PluginInterface);
@@ -102,8 +103,6 @@ public sealed class Plugin : IDalamudPlugin
         Loc.Setup(json, Assembly.GetExecutingAssembly());
     }
 
-    public static string CurrentGameVersion => DataManager.GameData.Repositories["ffxiv"].Version;
-
     public void Dispose()
     {
         PluginInterface.UiBuilder.Draw -= WindowSystem.Draw;
@@ -137,7 +136,7 @@ public sealed class Plugin : IDalamudPlugin
             _ = networkService.CheckForUpdates();
         }
 
-        DownloadWindow.IsOpen = State.Download.IsDownloading;
+        DownloadWindow.IsOpen = State.Penumbra.Download.IsDownloading || State.Translation.Download.IsDownloading;
         Changelog.IsOpen = State.ShowChangelog;
     }
 

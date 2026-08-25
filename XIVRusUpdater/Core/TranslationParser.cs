@@ -1,4 +1,8 @@
+using Dalamud.Plugin;
 using System;
+using System.IO;
+using System.Linq;
+using XIVRusUpdater.Core.Components;
 using XIVRusUpdater.Core.Resource;
 using XIVRusUpdater.Utils;
 
@@ -7,16 +11,40 @@ namespace XIVRusUpdater.Core;
 public class TranslationParser : IDisposable
 {
     private TranslationResourceManager _ResourceManager { get; set; }
+    private string _CurrentEngineId { get; set; }
 
-    public TranslationParser()
+    public TranslationParser(string @engineId)
     {
-        _ResourceManager = new TranslationResourceManager(Plugin.PluginInterface.AssemblyLocation.Directory.FullName, ResourceFormat.Csv);
+        _CurrentEngineId = engineId;
+        _ResourceManager = CreateResourceManager(_CurrentEngineId);
     }
+
+    public void UpdateEngine(string engineId)
+    {
+        if (engineId == _CurrentEngineId) return;
+
+        var newManager = CreateResourceManager(engineId);
+
+        _ResourceManager.Dispose();
+        _ResourceManager = newManager;
+        _CurrentEngineId = engineId;
+    }
+
+    public bool IsResourceEmpty() => !Directory.EnumerateFileSystemEntries(_ResourceManager.GetResourceDir()).Any();
+
+    private static TranslationResourceManager CreateResourceManager(string engineId)
+    {
+        var engine = TranslationEngines.Get(engineId)
+            ?? throw new ArgumentException($"Unknown translation engine: {engineId}", nameof(engineId));
+
+        return new TranslationResourceManager(Plugin.PluginInterface.AssemblyLocation.Directory!.FullName, engine.Id, engine.Format);
+    }
+
+    public string GetResourceDir() => _ResourceManager.GetResourceDir();
 
     public bool TryGetValue(string sheetName, uint RowId, uint Column, out ByteArrayWrapper? translation)
     {
         translation = null;
-        ByteArrayWrapper result;
         if (_ResourceManager.TryGet(sheetName, out var xrtFile))
         {
             if (xrtFile.TryGetData(RowId, Column, out var @byte))

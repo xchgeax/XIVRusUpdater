@@ -41,12 +41,13 @@ public unsafe class EXDHooks : IDisposable
     private static uint? currentAddonId;
 
     private readonly TranslationParser translationParser;
+    public TranslationParser parser => translationParser;
     private readonly LruCache<nint, ColumnInfo> columnMap = new(capacity: 65536);
     private readonly ConcurrentDictionary<nint, uint[]> stringColumnIndicesMap = new();
 
-    public EXDHooks(IGameInteropProvider provider)
+    public EXDHooks(IGameInteropProvider provider, String engineId)
     {
-        translationParser = new TranslationParser();
+        translationParser = new TranslationParser(engineId);
         InitializeHooks(provider);
         EnableAll();
     }
@@ -72,6 +73,8 @@ public unsafe class EXDHooks : IDisposable
             RaptureTextModule.MemberFunctionPointers.FormatAddonTextApply,
             Detour_FormatAddonTextApply);
     }
+
+    public void UpdateEngine(string engineId) => translationParser.UpdateEngine(engineId);
 
     public void EnableAll()
     {
@@ -179,7 +182,7 @@ public unsafe class EXDHooks : IDisposable
         {
             currentAddonId = null;
 
-            if (Plugin.filter.IsActive(AddonSheetName) &&
+            if (Plugin.filter.IsActive(AddonSheetName, 0) &&
                 translationParser.TryGetValue(AddonSheetName, addonId, 0, out var addonTranslation))
             {
                 return addonTranslation!.Pointer;
@@ -189,7 +192,7 @@ public unsafe class EXDHooks : IDisposable
         if (!TryGetColumnInfo((nint)columnPtr, out var info))
             return result;
 
-        if (Plugin.filter.IsActive(info.SheetName) &&
+        if (Plugin.filter.IsActive(info.SheetName, info.RowId) &&
             translationParser.TryGetValue(info.SheetName, info.RowId, info.ColumnIndex, out var translation))
         {
             return translation!.Pointer;

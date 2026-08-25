@@ -119,11 +119,11 @@ public sealed class TranslationComponentGenerator : IIncrementalGenerator
             sb.AppendLine($"            {Literal(c.Id)},");
             sb.AppendLine($"            {Literal(c.DisplayName)},");
             sb.AppendLine($"            {Literal(c.Description)},");
-            sb.AppendLine("            new Dictionary<string, int[]>");
+            sb.AppendLine("            new Dictionary<string, uint[]>");
             sb.AppendLine("            {");
             foreach (var (name, rows) in c.Sheets)
             {
-                var rowsLiteral = rows.Length == 0 ? "Array.Empty<int>()" : $"new[] {{ {string.Join(", ", rows)} }}";
+                var rowsLiteral = rows.Length == 0 ? "Array.Empty<uint>()" : $"new[] {{ {string.Join(", ", rows)} }}";
                 sb.AppendLine($"                [{Literal(name)}] = {rowsLiteral},");
             }
             sb.AppendLine("            }),");

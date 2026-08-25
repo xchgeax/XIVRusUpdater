@@ -13,11 +13,11 @@ public sealed class TranslationResourceManager : IDisposable
 
     private readonly Dictionary<string, FileResource> _cache = new();
     
-    public TranslationResourceManager(string dataDir, ResourceFormat format)
+    public TranslationResourceManager(string dataDir, string engine, ResourceFormat format)
     {
         _format = format;
         _extension = ResourceFormatParser.GetExtension(format);
-        _resourceDir = Path.Combine(dataDir, _extension);
+        _resourceDir = Path.Combine(dataDir, engine, _extension);
 
         if (!Directory.Exists(_resourceDir))
             return;
@@ -33,10 +33,12 @@ public sealed class TranslationResourceManager : IDisposable
         }
     }
 
-    public TranslationResourceManager(string dataDir, string format)
-        : this(dataDir, ResourceFormatParser.Parse(format))
+    public TranslationResourceManager(string dataDir, string engine, string format)
+        : this(dataDir, engine, ResourceFormatParser.Parse(format))
     {
     }
+
+    public string GetResourceDir() => _resourceDir;
 
     private string ToPath(string sheetName)
     {

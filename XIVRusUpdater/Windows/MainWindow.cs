@@ -22,13 +22,11 @@ namespace XIVRusUpdater.Windows;
 
 public class MainWindow : Window, IDisposable
 {
-    private readonly string goatImagePath;
+    private readonly string LogoImagePath;
     private readonly Plugin plugin;
     private Task? refreshTask;
     private Task? downloadTask;
     
-    private readonly ConfirmationPopup reloadPopup = new ConfirmationPopup("ReloadPopup");
-
     private enum OverallStatus
     {
         Ok,
@@ -38,7 +36,7 @@ public class MainWindow : Window, IDisposable
         Error
     }
 
-    public MainWindow(Plugin plugin, string goatImagePath)
+    public MainWindow(Plugin plugin, string logoImagePath)
         : base($"{Translations.MainWindowTitle}###XIVMain")
     {
         SizeConstraints = new WindowSizeConstraints
@@ -47,7 +45,7 @@ public class MainWindow : Window, IDisposable
             MaximumSize = new Vector2(float.MaxValue, float.MaxValue)
         };
 
-        this.goatImagePath = goatImagePath;
+        LogoImagePath = logoImagePath;
         this.plugin = plugin;
     }
 
@@ -65,26 +63,27 @@ public class MainWindow : Window, IDisposable
         {
             ImGui.BulletText(string.Format(Translations.PenumbraStatus, state.PenumbraEnabled ? "Enabled" : "Disabled"));
 
-            ImGui.BulletText(string.Format(Translations.XIVRusStatus, state.ModInstalled ? "Installed" : "Not Installed"));
+            ImGui.Separator();
 
-            ImGui.BulletText(string.Format(Translations.VersionStatus, state.InstalledVersion));
+            ImGui.BulletText(string.Format(Translations.XIVRusStatus, state.Translation.Installed ? "Installed" : "Not Installed"));
 
-            ImGui.BulletText(string.Format(Translations.ServerStatus, state.Availability));
+            ImGui.BulletText(string.Format(Translations.VersionStatus, state.Translation.RemoteVersion));
+
+            ImGui.Separator();
+
+            ImGui.BulletText(string.Format(Translations.XIVRusStatus, state.Penumbra.Installed ? "Installed" : "Not Installed"));
+
+            ImGui.BulletText(string.Format(Translations.VersionStatus, state.Penumbra.RemoteVersion));
         }
 
         if (ImGui.CollapsingHeader(Translations.VersionHeader, ImGuiTreeNodeFlags.DefaultOpen))
         {
-            ImGui.Text(string.Format(Translations.GameVersion, Plugin.CurrentGameVersion));
-
-            ImGui.Text(string.Format(Translations.InstalledVersion, state.InstalledVersion));
-
-            ImGui.Text(string.Format(Translations.RemoteVersion, plugin.Configuration.LastKnownRemoteVersion));
+            ImGui.Text(string.Format(Translations.InstalledVersion, state.Translation.Version));
+            ImGui.Text(string.Format(Translations.InstalledVersion, state.Penumbra.Version));
 
             ImGui.Text(Translations.LastCheck);
             ImGui.SameLine();
-            ImGui.TextDisabled(
-                plugin.Configuration.LastUpdateCheck == default
-                    ? "Never"
+            ImGui.TextDisabled(plugin.Configuration.LastUpdateCheck == default ? "Never"
                     : plugin.Configuration.LastUpdateCheck.ToString("G"));
         }
 
@@ -107,13 +106,11 @@ public class MainWindow : Window, IDisposable
 
             bool updateAvailable = Plugin.State.UpdateAvailable;
 
-            bool disabled = state.Availability == NetworkService.AvailabilityStatus.Disabled;
-
-            using (ImRaii.Disabled(!updateAvailable || disabled))
+            using (ImRaii.Disabled(!updateAvailable))
             {
                 if (ImGui.Button(Translations.UpdateButton, new Vector2(-1, 0)))
                 {
-                    downloadTask ??= Plugin.networkService.DownloadLatestVersionAsync();
+                    downloadTask ??= Plugin.networkService.DownloadLatestModAsync();
                 }
             }
 
@@ -121,13 +118,6 @@ public class MainWindow : Window, IDisposable
             {
                 downloadTask = null;
             }
-
-            if(ImGui.Button(Translations.ReloadButton, new Vector2(-1, 0)))
-            {
-                reloadPopup.Open();
-            }
-
-            reloadPopup.Draw();
 
             if (ImGui.Button(Translations.OpenConfigButton, new Vector2(-1, 0)))
             {
@@ -158,10 +148,7 @@ public class MainWindow : Window, IDisposable
         if (!state.PenumbraEnabled)
             return OverallStatus.Error;
 
-        if (state.Availability == NetworkService.AvailabilityStatus.Disabled)
-            return OverallStatus.Disabled;
-
-        if (plugin.Configuration.LastKnownRemoteVersion != plugin.Configuration.LastInstalledVersion)
+        if (Plugin.State.UpdateAvailable)
             return OverallStatus.UpdateAvailable;
 
         return OverallStatus.Ok;
