@@ -105,8 +105,8 @@ public class NetworkService
         if (!plugin.Configuration.AutoDownloadUpdates)
             return;
 
-        await DownloadLatestModAsync();
-        await DownloadLatestTranslationAsync();
+        if(Plugin.State.Penumbra.UpdateAvailable) await DownloadLatestModAsync();
+        if (Plugin.State.Translation.UpdateAvailable) await DownloadLatestTranslationAsync();
     }
 
     public async Task DownloadLatestModAsync()
