@@ -44,4 +44,8 @@
   <ItemGroup>
     <PackageReference Update="DotNet.ReproducibleBuilds" Version="2.0.5" />
   </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Windows\Debug\WIdgets\" />
+  </ItemGroup>
 </Project>

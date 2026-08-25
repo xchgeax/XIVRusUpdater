@@ -14,6 +14,7 @@ using XIVRusUpdater.Hooks;
 using XIVRusUpdater.Services;
 using XIVRusUpdater.Utils.States;
 using XIVRusUpdater.Windows;
+using XIVRusUpdater.Windows.Debug;
 
 namespace XIVRusUpdater;
 
@@ -40,10 +41,11 @@ public sealed class Plugin : IDalamudPlugin
 
 
     public readonly WindowSystem WindowSystem = new("XIV Rus Updater");
-    private ConfigWindow ConfigWindow { get; init; }
-    private MainWindow MainWindow { get; init; }
-    private DownloadWindow DownloadWindow { get; init; }
-    private ChangelogWindow Changelog { get; init; }
+    private readonly ConfigWindow ConfigWindow;
+    private readonly MainWindow MainWindow;
+    private readonly DownloadWindow DownloadWindow;
+    private readonly ChangelogWindow Changelog;
+    private readonly DebugWindow Debug;
 
     public Plugin()
     {
@@ -64,11 +66,13 @@ public sealed class Plugin : IDalamudPlugin
         MainWindow = new MainWindow(this, iconPath);
         DownloadWindow = new DownloadWindow();
         Changelog = new ChangelogWindow(this);
+        Debug = new DebugWindow();
 
         WindowSystem.AddWindow(ConfigWindow);
         WindowSystem.AddWindow(MainWindow);
         WindowSystem.AddWindow(DownloadWindow);
         WindowSystem.AddWindow(Changelog);
+        WindowSystem.AddWindow(Debug);
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
