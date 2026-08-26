@@ -8,6 +8,7 @@ using Serilog;
 using System;
 using System.Linq;
 using System.Numerics;
+using XIVRusUpdater.Windows.Debug.Widgets;
 
 namespace XIVRusUpdater.Windows.Debug;
 
@@ -15,7 +16,7 @@ public class DebugWindow : Window, IDisposable
 {
     private readonly IDebugWindowWidget[] modules =
     [
-        
+        new XRTReaderWIdget(),
     ];
 
     private readonly IOrderedEnumerable<IDebugWindowWidget> orderedModules;
