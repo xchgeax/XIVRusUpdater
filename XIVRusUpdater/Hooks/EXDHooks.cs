@@ -7,6 +7,7 @@ using Serilog;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using XIVRusUpdater.Core;
 using XIVRusUpdater.Utils;
 using XIVRusUpdater.Utils.Extentions;
@@ -43,7 +44,7 @@ public unsafe class EXDHooks : IDisposable
     private readonly TranslationParser translationParser;
     public TranslationParser parser => translationParser;
     private readonly LruCache<nint, ColumnInfo> columnMap = new(capacity: 65536);
-    private readonly ConcurrentDictionary<nint, uint[]> stringColumnIndicesMap = new();
+    private readonly ConcurrentDictionary<string, uint[]> stringColumnIndicesMap = new(StringComparer.Ordinal);
 
     public EXDHooks(IGameInteropProvider provider, String engineId)
     {
@@ -51,6 +52,12 @@ public unsafe class EXDHooks : IDisposable
         InitializeHooks(provider);
         EnableAll();
     }
+
+    public int ColumnCacheCount => columnMap.Count;
+    public int StringColumnCacheCount => stringColumnIndicesMap.Count;
+
+    public KeyValuePair<string, uint[]>[] GetStringColumnIndicesCacheSnapshot()
+        => stringColumnIndicesMap.ToArray();
 
     private void InitializeHooks(IGameInteropProvider provider)
     {
@@ -223,7 +230,7 @@ public unsafe class EXDHooks : IDisposable
 
         try
         {
-            var stringColumnIndices = GetStringColumnIndices(activeSheet);
+            var stringColumnIndices = GetStringColumnIndices(activeSheet, sheetName);
             for (uint columnIndex = 0; columnIndex < stringColumnIndices.Length; columnIndex++)
             {
                 uint globalColumnIndex = stringColumnIndices[columnIndex];
@@ -288,20 +295,19 @@ public unsafe class EXDHooks : IDisposable
     /// только по текстовым колонкам.
     /// </summary>
     /// <remarks>
-    /// stringColumnIndicesMap имеет структуру Dictionary&lt;nint, uint[]&gt;:
-    /// ключом является адрес ExcelSheet, а значением — упорядоченный массив
+    /// stringColumnIndicesMap имеет структуру Dictionary&lt;string, uint[]&gt;:
+    /// ключом является имя ExcelSheet, а значением — упорядоченный массив
     /// глобальных индексов только текстовых колонок. Позиция элемента в массиве
     /// одновременно является его строковым индексом: например, значение [2, 5, 8]
     /// означает, что глобальная колонка 5 является второй текстовой колонкой.
     /// </remarks>
-    private uint[] GetStringColumnIndices(ExcelSheet* sheet)
+    private uint[] GetStringColumnIndices(ExcelSheet* sheet, string sheetName)
     {
-        nint sheetPtr = (nint)sheet;
-        if (stringColumnIndicesMap.TryGetValue(sheetPtr, out var indices))
+        if (stringColumnIndicesMap.TryGetValue(sheetName, out var indices))
             return indices;
 
         indices = BuildStringColumnIndices(sheet);
-        return stringColumnIndicesMap.GetOrAdd(sheetPtr, indices);
+        return stringColumnIndicesMap.GetOrAdd(sheetName, indices);
     }
 
     private static uint[] BuildStringColumnIndices(ExcelSheet* sheet)

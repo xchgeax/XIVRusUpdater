@@ -20,6 +20,15 @@ public class LruCache<TKey, TValue> where TKey : notnull
         lruList = new LinkedList<CacheItem>();
     }
 
+    public int Count
+    {
+        get
+        {
+            lock (syncRoot)
+                return cache.Count;
+        }
+    }
+
     public bool TryGetValue(TKey key, out TValue value)
     {
         lock (syncRoot)
@@ -49,25 +58,21 @@ public class LruCache<TKey, TValue> where TKey : notnull
     {
         lock (syncRoot)
         {
-            if (cache.ContainsKey(key))
-                return false;
-
-            AddCore(key, value, updateExisting: false);
-            return true;
+            return AddCore(key, value, updateExisting: false);
         }
     }
 
-    private void AddCore(TKey key, TValue value, bool updateExisting)
+    private bool AddCore(TKey key, TValue value, bool updateExisting)
     {
         if (cache.TryGetValue(key, out var node))
         {
             if (!updateExisting)
-                return;
+                return false;
 
             node.Value = new CacheItem(key, value);
             lruList.Remove(node);
             lruList.AddFirst(node);
-            return;
+            return true;
         }
 
         if (cache.Count >= capacity)
@@ -84,6 +89,7 @@ public class LruCache<TKey, TValue> where TKey : notnull
         var newNode = new LinkedListNode<CacheItem>(cacheItem);
         lruList.AddFirst(newNode);
         cache[key] = newNode;
+        return true;
     }
 
     private struct CacheItem
