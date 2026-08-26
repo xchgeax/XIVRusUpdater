@@ -93,11 +93,7 @@ public class TranslationParser : IDisposable
     {
         lock (syncRoot)
         {
-            _ResourceManager.Dispose();
-
-            foreach (var manager in retiredResourceManagers)
-                manager.Dispose();
-
+            // Буферы могли быть возвращены игре и поэтому остаются жить до завершения процесса.
             retiredResourceManagers.Clear();
         }
     }
