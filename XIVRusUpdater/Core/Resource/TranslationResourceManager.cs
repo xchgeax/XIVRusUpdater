@@ -53,6 +53,15 @@ public sealed class TranslationResourceManager : IDisposable
 
     public List<string> GetAllSheets() => _cache.Keys.ToList();
 
+    public (int ResourceCount, long NativeMemoryBytes) GetCacheStats()
+    {
+        long memory = 0;
+        foreach (var resource in _cache.Values)
+            memory += resource.GetNativeMemoryUsage();
+
+        return (_cache.Count, memory);
+    }
+
     public void UnloadAll()
     {
         foreach(var (_, file) in _cache)
