@@ -67,7 +67,7 @@ public class FileResource : IDisposable
         Rows.Clear();
     }
 
-    internal static void DisposeRows(Dictionary<uint, List<ByteArrayWrapper?>> rows)
+    public static void DisposeRows(Dictionary<uint, List<ByteArrayWrapper?>> rows)
     {
         foreach (var (_, columns) in rows)
         {

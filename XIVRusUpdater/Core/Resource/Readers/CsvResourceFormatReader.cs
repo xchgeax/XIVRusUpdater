@@ -9,7 +9,7 @@ using XIVRusUpdater.Utils;
 
 namespace XIVRusUpdater.Core.Resource.Readers;
 
-internal sealed class CsvResourceFormatReader : IResourceFormatReader
+public sealed class CsvResourceFormatReader : IResourceFormatReader
 {
     private static readonly MacroStringParseOptions MacroStringOptions = new(default);
 

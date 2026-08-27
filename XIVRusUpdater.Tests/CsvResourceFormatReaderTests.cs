@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using XIVRusUpdater.Core.Resource;
 using XIVRusUpdater.Core.Resource.Readers;
 using Xunit;
