@@ -13,7 +13,7 @@ using XIVRusUpdater.Utils.Extentions;
 
 namespace XIVRusUpdater.Hooks;
 
-public unsafe class EXDHooks : IDisposable
+public unsafe partial class EXDHooks : IDisposable
 {
     private const string AddonSheetName = "Addon";
 
