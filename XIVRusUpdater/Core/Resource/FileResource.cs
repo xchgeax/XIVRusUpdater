@@ -53,6 +53,18 @@ public class FileResource : IDisposable
         return value is not null;
     }
 
+    public long GetNativeMemoryUsage()
+    {
+        long size = 0;
+        foreach (var columns in Rows.Values)
+        {
+            foreach (var column in columns)
+                size += column?.Length ?? 0;
+        }
+
+        return size;
+    }
+
     public void Dispose()
     {
         DisposeRows(Rows);

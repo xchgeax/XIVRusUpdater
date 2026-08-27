@@ -71,6 +71,30 @@ public class TranslationParser : IDisposable
         }
     }
 
+    public CacheMemoryStats GetCacheMemoryStats()
+    {
+        lock (syncRoot)
+        {
+            var active = _ResourceManager.GetCacheStats();
+            int retiredResourceCount = 0;
+            long retiredMemory = 0;
+
+            foreach (var manager in retiredResourceManagers)
+            {
+                var retired = manager.GetCacheStats();
+                retiredResourceCount += retired.ResourceCount;
+                retiredMemory += retired.NativeMemoryBytes;
+            }
+
+            return new CacheMemoryStats(
+                active.ResourceCount,
+                active.NativeMemoryBytes,
+                retiredResourceCount,
+                retiredMemory,
+                retiredResourceManagers.Count);
+        }
+    }
+
     public bool TryGetValue(string sheetName, uint RowId, uint Column, out ByteArrayWrapper? translation)
     {
         lock (syncRoot)
@@ -97,4 +121,14 @@ public class TranslationParser : IDisposable
             retiredResourceManagers.Clear();
         }
     }
+
+public readonly record struct CacheMemoryStats(
+    int ActiveResourceCount,
+    long ActiveNativeMemoryBytes,
+    int RetiredResourceCount,
+    long RetiredNativeMemoryBytes,
+    int RetiredManagerCount)
+{
+    public long TotalNativeMemoryBytes => ActiveNativeMemoryBytes + RetiredNativeMemoryBytes;
+}
 }
