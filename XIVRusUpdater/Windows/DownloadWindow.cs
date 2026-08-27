@@ -14,7 +14,7 @@ namespace XIVRusUpdater.Windows;
 public class DownloadWindow : Window
 {
     public DownloadWindow()
-        : base($"{Translations.DownloadTitle}###DownloadWindow")
+        : base($"Downloading###DownloadWindow")
     {
         RespectCloseHotkey = false;
     }
@@ -42,14 +42,14 @@ public class DownloadWindow : Window
 
         ImGui.Spacing();
 
-        ImGui.Text(string.Format(Translations.DownloadProgress,
+        ImGui.Text(string.Format("{0} MB / {1} MB",
             Math.Round(download.DownloadedBytes / 1024f / 1024f),
             Math.Round(download.TotalBytes / 1024f / 1024f)));
 
-        ImGui.Text(Translations.DownloadSource);
+        ImGui.Text("Current Source: ");
         ImGui.SameLine();
         ImGui.TextWrapped(download.CurrentSource);
 
-        ImGui.Text(string.Format(Translations.DownloadSpeed, Math.Round(download.SpeedMBps, 2)));
+        ImGui.Text(string.Format("Speed: {0} MB/s", Math.Round(download.SpeedMBps, 2)));
     }
 }

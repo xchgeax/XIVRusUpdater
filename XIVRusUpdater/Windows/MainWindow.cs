@@ -3,6 +3,7 @@ using Dalamud.Interface.Colors;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using System;
+using System.Collections.Generic;
 using System.Numerics;
 using System.Threading.Tasks;
 using XIVRusUpdater.Utils;
@@ -26,7 +27,7 @@ public class MainWindow : Window, IDisposable
     }
 
     public MainWindow(Plugin plugin, string logoImagePath)
-        : base($"{Translations.MainWindowTitle}###XIVMain")
+        : base("XIV Rus Auto Updater###XIVMain")
     {
         SizeConstraints = new WindowSizeConstraints
         {
@@ -48,42 +49,41 @@ public class MainWindow : Window, IDisposable
 
         ImGui.Spacing();
 
-        if (ImGui.CollapsingHeader(Translations.SystemStatusHeader, ImGuiTreeNodeFlags.DefaultOpen))
+        if (ImGui.CollapsingHeader("System Status", ImGuiTreeNodeFlags.DefaultOpen))
         {
-            ImGui.BulletText(string.Format(Translations.PenumbraStatus, state.PenumbraEnabled ? "Enabled" : "Disabled"));
+            ImGui.BulletText($"Penumbra: {(state.PenumbraEnabled ? "Enabled" : "Disabled")}");
 
             ImGui.Separator();
 
-            ImGui.BulletText(string.Format(Translations.XIVRusStatus, state.Translation.Installed ? "Installed" : "Not Installed"));
+            ImGui.BulletText($"Translation Status: {(state.Translation.Installed ? "Installed" : "Not Installed")}");
 
-            ImGui.BulletText(string.Format(Translations.VersionStatus, state.Translation.RemoteVersion));
+            ImGui.BulletText($"Translation Version: {state.Translation.Version}");
 
             ImGui.Separator();
 
-            ImGui.BulletText(string.Format(Translations.XIVRusStatus, state.Penumbra.Installed ? "Installed" : "Not Installed"));
+            ImGui.BulletText($"Penumbra Mod Status: {(state.Penumbra.Installed ? "Installed" : "Not Installed")}");
 
-            ImGui.BulletText(string.Format(Translations.VersionStatus, state.Penumbra.RemoteVersion));
+            ImGui.BulletText($"Penumbra Mod Version: {state.Penumbra.Version}");
         }
 
-        if (ImGui.CollapsingHeader(Translations.VersionHeader, ImGuiTreeNodeFlags.DefaultOpen))
+        if (ImGui.CollapsingHeader("Version Information", ImGuiTreeNodeFlags.DefaultOpen))
         {
-            ImGui.Text(string.Format(Translations.InstalledVersion, state.Translation.Version));
-            ImGui.Text(string.Format(Translations.InstalledVersion, state.Penumbra.Version));
+            ImGui.Text($"Translation Remote Version: {state.Translation.Version}");
+            ImGui.Text($"Penumbra Remote Version: {state.Penumbra.Version}");
 
-            ImGui.Text(Translations.LastCheck);
+            ImGui.Text("Last Check: ");
             ImGui.SameLine();
-            ImGui.TextDisabled(plugin.Configuration.LastUpdateCheck == default ? "Never"
-                    : plugin.Configuration.LastUpdateCheck.ToString("G"));
+            ImGui.TextDisabled(plugin.Configuration.LastUpdateCheck == default ? "Never" : plugin.Configuration.LastUpdateCheck.ToString("G"));
         }
 
-        if (ImGui.CollapsingHeader(Translations.ChangelogHeader, ImGuiTreeNodeFlags.DefaultOpen))
+        if (ImGui.CollapsingHeader("Last Changelog", ImGuiTreeNodeFlags.DefaultOpen))
         {
-            ImGui.TextWrapped(Plugin.State.LastChangelog ?? Translations.NoChangelog);
+            ImGui.TextWrapped(Plugin.State.LastChangelog ?? "No changelog available.");
         }
 
-        if (ImGui.CollapsingHeader(Translations.ActionsHeader, ImGuiTreeNodeFlags.DefaultOpen))
+        if (ImGui.CollapsingHeader("Actions", ImGuiTreeNodeFlags.DefaultOpen))
         {
-            if (ImGui.Button(Translations.RefreshButton, new Vector2(-1, 0)))
+            if (ImGui.Button("Refresh", new Vector2(-1, 0)))
             {
                 refreshTask ??= Plugin.networkService.CheckForUpdates();
             }
@@ -97,7 +97,7 @@ public class MainWindow : Window, IDisposable
 
             using (ImRaii.Disabled(!updateAvailable))
             {
-                if (ImGui.Button(Translations.UpdateButton, new Vector2(-1, 0)))
+                if (ImGui.Button("Update components", new Vector2(-1, 0)))
                 {
                     downloadTask ??= Plugin.networkService.DownloadLatestModAsync();
                 }
@@ -108,25 +108,25 @@ public class MainWindow : Window, IDisposable
                 downloadTask = null;
             }
 
-            if (ImGui.Button(Translations.OpenConfigButton, new Vector2(-1, 0)))
+            if (ImGui.Button("Open config", new Vector2(-1, 0)))
             {
                 plugin.ToggleConfigUi();
             }
         }
 
-        if (ImGui.CollapsingHeader(Translations.DiagnosticsHeader))
+        if (ImGui.CollapsingHeader("Diagnostics"))
         {
-            ImGui.TextDisabled(Translations.Branch);
+            ImGui.TextDisabled("Branch: ");
             ImGui.SameLine();
             ImGui.Text(plugin.Configuration.Channel.ToString());
 
-            ImGui.TextDisabled(Translations.TesterAllowance);
+            ImGui.TextDisabled("Tester Access Allowance: ");
             ImGui.SameLine();
 
             if (!plugin.Configuration.TesterHumanCheck)
-                ImGui.TextColored(ImGuiColors.DalamudYellow, Translations.TesterDenied);
+                ImGui.TextColored(ImGuiColors.DalamudYellow, "Not Allowed");
             else
-                ImGui.TextColored(ImGuiColors.HealerGreen, Translations.TesterAllowed);
+                ImGui.TextColored(ImGuiColors.HealerGreen, "Allowed");
         }
     }
 
@@ -154,22 +154,22 @@ public class MainWindow : Window, IDisposable
         {
             case OverallStatus.Ok:
                 color = ImGuiColors.HealerGreen;
-                text = Translations.StatusUpToDate;
+                text = "Engine is up to date";
                 break;
 
             case OverallStatus.UpdateAvailable:
                 color = ImGuiColors.DalamudYellow;
-                text = Translations.StatusUpdateAvailable;
+                text = "Update available";
                 break;
 
             case OverallStatus.Disabled:
                 color = ImGuiColors.DalamudRed;
-                text = Translations.StatusDisabled;
+                text = "Engine temporarily disabled";
                 break;
 
             default:
                 color = ImGuiColors.DalamudRed;
-                text = Translations.StatusError;
+                text = "Unable to determine status";
                 break;
         }
 
