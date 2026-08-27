@@ -128,18 +128,17 @@ public sealed class Plugin : IDalamudPlugin
 
     private void OnCommand(string command, string args)
     {
-        if (args.Contains("debug"))
+        if (string.Equals(args.Trim(), "debug", StringComparison.OrdinalIgnoreCase))
         { 
             Debug.Toggle();
             return;
         }
-        if (string.Equals(args.Trim(), "cache", StringComparison.OrdinalIgnoreCase))
+        else if (string.Equals(args.Trim(), "cache", StringComparison.OrdinalIgnoreCase))
         {
             PrintCacheMemoryUsage();
             return;
         }
-
-        if (string.Equals(args.Trim(), "sheetcache", StringComparison.OrdinalIgnoreCase))
+        else if (string.Equals(args.Trim(), "sheetcache", StringComparison.OrdinalIgnoreCase))
         {
             PrintSheetSchemaCache();
             return;

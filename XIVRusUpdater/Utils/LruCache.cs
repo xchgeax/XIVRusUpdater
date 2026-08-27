@@ -21,6 +21,14 @@ public class LruCache<TKey, TValue> where TKey : notnull
         lruList = new LinkedList<CacheItem>();
     }
 
+    public IReadOnlyList<TValue> Snapshot()
+    {
+        lock (syncRoot)
+        {
+            return lruList.Select(item => item.Value).ToList();
+        }
+    }
+
     public int Count
     {
         get
