@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace XIVRusUpdater.Utils;
 
@@ -18,6 +19,14 @@ public class LruCache<TKey, TValue> where TKey : notnull
         this.capacity = capacity;
         cache = new Dictionary<TKey, LinkedListNode<CacheItem>>(capacity);
         lruList = new LinkedList<CacheItem>();
+    }
+
+    public IReadOnlyList<TValue> Snapshot()
+    {
+        lock (syncRoot)
+        {
+            return lruList.Select(item => item.Value).ToList();
+        }
     }
 
     public int Count

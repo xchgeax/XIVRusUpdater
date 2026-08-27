@@ -14,6 +14,7 @@ using XIVRusUpdater.Hooks;
 using XIVRusUpdater.Services;
 using XIVRusUpdater.Utils.States;
 using XIVRusUpdater.Windows;
+using XIVRusUpdater.Windows.Debug;
 
 namespace XIVRusUpdater;
 
@@ -58,10 +59,11 @@ public sealed class Plugin : IDalamudPlugin
 
 
     public readonly WindowSystem WindowSystem = new("XIV Rus Updater");
-    private ConfigWindow ConfigWindow { get; init; }
-    private MainWindow MainWindow { get; init; }
-    private DownloadWindow DownloadWindow { get; init; }
-    private ChangelogWindow Changelog { get; init; }
+    private readonly ConfigWindow ConfigWindow;
+    private readonly MainWindow MainWindow;
+    private readonly DownloadWindow DownloadWindow;
+    private readonly ChangelogWindow Changelog;
+    private readonly DebugWindow Debug;
 
     public Plugin()
     {
@@ -83,16 +85,17 @@ public sealed class Plugin : IDalamudPlugin
         MainWindow = new MainWindow(this, iconPath);
         DownloadWindow = new DownloadWindow();
         Changelog = new ChangelogWindow(this);
+        Debug = new DebugWindow();
 
         WindowSystem.AddWindow(ConfigWindow);
         WindowSystem.AddWindow(MainWindow);
         WindowSystem.AddWindow(DownloadWindow);
         WindowSystem.AddWindow(Changelog);
+        WindowSystem.AddWindow(Debug);
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage =
-                "Open the plugin window. Use '/xivrus cache' for cache memory usage or '/xivrus sheetcache' to show the EXD sheet schema cache."
+            HelpMessage = "Open the plugin window. Use '/xivrus debug' for open debug window"
         });
 
         PluginInterface.UiBuilder.Draw += WindowSystem.Draw;
@@ -142,63 +145,13 @@ public sealed class Plugin : IDalamudPlugin
 
     private void OnCommand(string command, string args)
     {
-        if (string.Equals(args.Trim(), "cache", StringComparison.OrdinalIgnoreCase))
-        {
-            PrintCacheMemoryUsage();
-            return;
-        }
-
-        if (string.Equals(args.Trim(), "sheetcache", StringComparison.OrdinalIgnoreCase))
-        {
-            PrintSheetSchemaCache();
+        if (string.Equals(args.Trim(), "debug", StringComparison.OrdinalIgnoreCase))
+        { 
+            Debug.Toggle();
             return;
         }
 
         MainWindow.Toggle();
-    }
-
-    private static void PrintCacheMemoryUsage()
-    {
-        var translation = HookLayers.Parser.GetCacheMemoryStats();
-        var nativeMemory = translation.TotalNativeMemoryBytes;
-        var columnCacheCount = HookLayers.ColumnCacheCount;
-        var stringColumnCacheCount = HookLayers.StringColumnCacheCount;
-
-        ChatGui.Print(
-            $"[XIV Rus] Translation caches: {FormatBytes(nativeMemory)} native payload " +
-            $"({translation.ActiveResourceCount} active resources, " +
-            $"{translation.RetiredResourceCount} retired resources in " +
-            $"{translation.RetiredManagerCount} manager(s)).");
-        ChatGui.Print(
-            $"[XIV Rus] Retained retired translation cache: {FormatBytes(translation.RetiredNativeMemoryBytes)} " +
-            $"({translation.RetiredResourceCount} resources, {translation.RetiredManagerCount} manager(s)).");
-        ChatGui.Print(
-            $"[XIV Rus] EXD column lookup cache: {columnCacheCount:N0} entries " +
-            "(game column address -> sheet, row, and column metadata).");
-        ChatGui.Print(
-            $"[XIV Rus] EXD sheet schema cache: {stringColumnCacheCount:N0} entries " +
-            "(game sheet name -> global indexes of string columns).");
-        ChatGui.Print(
-            "[XIV Rus] Reported memory is unmanaged translation-buffer payload; object overhead is not included.");
-    }
-
-    private static void PrintSheetSchemaCache()
-    {
-        var entries = HookLayers.GetStringColumnIndicesCacheSnapshot()
-                                .OrderBy(entry => entry.Key, StringComparer.Ordinal);
-
-        ChatGui.Print($"[XIV Rus] EXD sheet schema cache ({HookLayers.StringColumnCacheCount:N0} entries):");
-
-        foreach (var entry in entries)
-        {
-            ChatGui.Print($"[XIV Rus] {entry.Key}: [{string.Join(", ", entry.Value)}]");
-        }
-    }
-
-    private static string FormatBytes(long bytes)
-    {
-        const double megabyte = 1024d * 1024d;
-        return $"{bytes:N0} B / {bytes / megabyte:N2} MiB";
     }
 
     private async void OnUpdate(IFramework framework)
