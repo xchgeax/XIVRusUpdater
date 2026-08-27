@@ -1,16 +1,14 @@
-using Dalamud.Hooking;
-using Dalamud.Plugin.Services;
-using FFXIVClientStructs.FFXIV.Common.Component.Excel;
-using FFXIVClientStructs.FFXIV.Client.UI.Misc;
-using FFXIVClientStructs.FFXIV.Component.Excel;
-using Serilog;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Linq;
+using Dalamud.Hooking;
+using Dalamud.Plugin.Services;
+using FFXIVClientStructs.FFXIV.Client.UI.Misc;
+using FFXIVClientStructs.FFXIV.Common.Component.Excel;
+using FFXIVClientStructs.FFXIV.Component.Excel;
+using Serilog;
 using XIVRusUpdater.Core;
 using XIVRusUpdater.Utils;
-using XIVRusUpdater.Utils.Extentions;
 
 namespace XIVRusUpdater.Hooks;
 
@@ -39,16 +37,16 @@ public unsafe partial class EXDHooks : IDisposable
         void* normalizationBuffer);
 
     [ThreadStatic]
-    private static uint? currentAddonId;
+    private static uint? CurrentAddonId;
 
-    private readonly TranslationParser translationParser;
-    public TranslationParser parser => translationParser;
+    public TranslationParser Parser { get; }
+
     private readonly LruCache<nint, ColumnInfo> columnMap = new(capacity: 65536);
     private readonly ConcurrentDictionary<string, uint[]> stringColumnIndicesMap = new(StringComparer.Ordinal);
 
     public EXDHooks(IGameInteropProvider provider, String engineId)
     {
-        translationParser = new TranslationParser(engineId);
+        Parser = new TranslationParser(engineId);
         InitializeHooks(provider);
         EnableAll();
     }
@@ -81,7 +79,7 @@ public unsafe partial class EXDHooks : IDisposable
             Detour_FormatAddonTextApply);
     }
 
-    public void UpdateEngine(string engineId) => translationParser.UpdateEngine(engineId);
+    public void UpdateEngine(string engineId) => Parser.UpdateEngine(engineId);
 
     public void EnableAll()
     {
@@ -108,7 +106,7 @@ public unsafe partial class EXDHooks : IDisposable
         DisableAll();
         DisposeHooks();
 
-        translationParser.Dispose();
+        Parser.Dispose();
     }
 
     private void DisposeHooks()
@@ -162,8 +160,8 @@ public unsafe partial class EXDHooks : IDisposable
         void* formatBuffer,
         void* normalizationBuffer)
     {
-        var previousAddonId = currentAddonId;
-        currentAddonId = addonId;
+        var previousAddonId = CurrentAddonId;
+        CurrentAddonId = addonId;
 
         try
         {
@@ -177,7 +175,7 @@ public unsafe partial class EXDHooks : IDisposable
         }
         finally
         {
-            currentAddonId = previousAddonId;
+            CurrentAddonId = previousAddonId;
         }
     }
 
@@ -185,12 +183,12 @@ public unsafe partial class EXDHooks : IDisposable
     {
         var result = resolveIndirectionHook.Original(columnPtr);
 
-        if (currentAddonId is uint addonId)
+        if (CurrentAddonId is { } addonId)
         {
-            currentAddonId = null;
+            CurrentAddonId = null;
 
             if (Plugin.filter.IsActive(AddonSheetName, 0) &&
-                translationParser.TryGetValue(AddonSheetName, addonId, 0, out var addonTranslation))
+                Parser.TryGetValue(AddonSheetName, addonId, 0, out var addonTranslation))
             {
                 return addonTranslation!.Pointer;
             }
@@ -200,7 +198,7 @@ public unsafe partial class EXDHooks : IDisposable
             return result;
 
         if (Plugin.filter.IsActive(info.SheetName, info.RowId) &&
-            translationParser.TryGetValue(info.SheetName, info.RowId, info.ColumnIndex, out var translation))
+            Parser.TryGetValue(info.SheetName, info.RowId, info.ColumnIndex, out var translation))
         {
             return translation!.Pointer;
         }
@@ -220,7 +218,7 @@ public unsafe partial class EXDHooks : IDisposable
         if (!TryGetRowContext(wrapper, sheet, out var row, out var activeSheet, out var sheetName))
             return;
 
-        if (currentAddonId is not null &&
+        if (CurrentAddonId is not null &&
             string.Equals(sheetName, AddonSheetName, StringComparison.Ordinal))
         {
             return;

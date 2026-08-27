@@ -8,11 +8,11 @@ using XIVRusUpdater.Utils.Extentions;
 
 namespace XIVRusUpdater.Core.Resource.Readers;
 
-internal sealed class XrtResourceFormatReader : IResourceFormatReader
+public sealed class XrtResourceFormatReader : IResourceFormatReader
 {
     private static readonly byte[] Magic = "XRT\0"u8.ToArray();
 
-    public Dictionary<uint, List<ByteArrayWrapper?>> Read(Stream stream)
+    public Dictionary<uint, List<ByteArrayWrapper?>> Read(Stream stream, string sheetName)
     {
         var rows = new Dictionary<uint, List<ByteArrayWrapper?>>();
 

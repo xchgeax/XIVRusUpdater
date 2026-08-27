@@ -1,14 +1,14 @@
+using System;
+using System.IO;
+using System.Linq;
+using System.Reflection;
+using System.Threading.Tasks;
 using CheapLoc;
 using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
-using System;
-using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Threading.Tasks;
 using XIVRusUpdater.Core;
 using XIVRusUpdater.Hooks;
 using XIVRusUpdater.Services;
@@ -20,13 +20,29 @@ namespace XIVRusUpdater;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
-    [PluginService] internal static IFramework Framework { get; private set; } = null!;
-    [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
-    [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
-    [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
-    [PluginService] internal static IPluginLog Log { get; private set; } = null!;
-    [PluginService] internal static IGameInteropProvider interopProvider { get; private set; } = null!;
+    [PluginService]
+    internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
+
+    [PluginService]
+    internal static IFramework Framework { get; private set; } = null!;
+
+    [PluginService]
+    internal static ICommandManager CommandManager { get; private set; } = null!;
+
+    [PluginService]
+    internal static IDataManager DataManager { get; private set; } = null!;
+
+    [PluginService]
+    internal static IChatGui ChatGui { get; private set; } = null!;
+
+    [PluginService]
+    internal static INotificationManager NotificationManager { get; private set; } = null!;
+
+    [PluginService]
+    internal static IPluginLog Log { get; private set; } = null!;
+
+    [PluginService]
+    internal static IGameInteropProvider interopProvider { get; private set; } = null!;
 
     public static EXDHooks HookLayers { get; private set; } = null!;
     public static TranslationFilter filter { get; private set; } = null!;
@@ -34,9 +50,10 @@ public sealed class Plugin : IDalamudPlugin
     internal static PenumbraService PenumbraApi { get; private set; } = null!;
     internal static NetworkService networkService { get; private set; } = null!;
     internal static UpdaterState State { get; private set; } = null!;
+    internal static Plugin Instance { get; private set; } = null!;
 
     private const string CommandName = "/xivrus";
-    
+
     public Configuration Configuration { get; init; }
     private DateTime nextRefresh = DateTime.MinValue;
 
@@ -51,6 +68,7 @@ public sealed class Plugin : IDalamudPlugin
     public Plugin()
     {
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
+        Instance = this;
         filter = new TranslationFilter();
         filter.Rebuild(Configuration.DisabledComponents);
         HookLayers = new EXDHooks(interopProvider, Configuration.EngineId);
@@ -60,7 +78,7 @@ public sealed class Plugin : IDalamudPlugin
         _ = Task.Run(Initialization);
 
         Framework.Update += OnUpdate;
-        
+
         var iconPath = Path.Combine(PluginInterface.AssemblyLocation.Directory?.FullName!, "icon.png");
 
         ConfigWindow = new ConfigWindow(this);
@@ -121,7 +139,6 @@ public sealed class Plugin : IDalamudPlugin
         ConfigWindow.Dispose();
         MainWindow.Dispose();
         DownloadWindow.Dispose();
-        ConfigWindow.Dispose();
 
         CommandManager.RemoveHandler(CommandName);
     }
@@ -142,7 +159,7 @@ public sealed class Plugin : IDalamudPlugin
         if (DateTime.Now > nextRefresh)
         {
             nextRefresh = DateTime.Now.AddMinutes(Configuration.UpdateCheckIntervalMinutes);
-            Plugin.Log.Information($"Perform timed update... Next update: {nextRefresh.ToString()}");
+            Log.Information($"Perform timed update... Next update: {nextRefresh.ToString()}");
 
             _ = networkService.CheckForUpdates();
         }
