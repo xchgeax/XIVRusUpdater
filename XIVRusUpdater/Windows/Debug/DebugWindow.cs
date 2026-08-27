@@ -18,6 +18,7 @@ public class DebugWindow : Window, IDisposable
     [
         new XRTReaderWIdget(),
         new SheetCacheCoverageWidget(),
+        new NativeMemoryUsageWidget(),
     ];
 
     private readonly IOrderedEnumerable<IDebugWindowWidget> orderedModules;

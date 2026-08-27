@@ -133,61 +133,8 @@ public sealed class Plugin : IDalamudPlugin
             Debug.Toggle();
             return;
         }
-        else if (string.Equals(args.Trim(), "cache", StringComparison.OrdinalIgnoreCase))
-        {
-            PrintCacheMemoryUsage();
-            return;
-        }
-        else if (string.Equals(args.Trim(), "sheetcache", StringComparison.OrdinalIgnoreCase))
-        {
-            PrintSheetSchemaCache();
-            return;
-        }
 
         MainWindow.Toggle();
-    }
-
-    private static void PrintCacheMemoryUsage()
-    {
-        var translation = HookLayers.parser.GetCacheMemoryStats();
-        var nativeMemory = translation.TotalNativeMemoryBytes;
-        var columnCacheCount = HookLayers.ColumnCacheCount;
-        var stringColumnCacheCount = HookLayers.StringColumnCacheCount;
-
-        ChatGui.Print(
-            $"[XIV Rus] Translation caches: {FormatBytes(nativeMemory)} native payload " +
-            $"({translation.ActiveResourceCount} active resources, " +
-            $"{translation.RetiredResourceCount} retired resources in " +
-            $"{translation.RetiredManagerCount} manager(s)).");
-        ChatGui.Print(
-            $"[XIV Rus] Retained retired translation cache: {FormatBytes(translation.RetiredNativeMemoryBytes)} " +
-            $"({translation.RetiredResourceCount} resources, {translation.RetiredManagerCount} manager(s)).");
-        ChatGui.Print(
-            $"[XIV Rus] EXD column lookup cache: {columnCacheCount:N0} entries " +
-            "(game column address -> sheet, row, and column metadata).");
-        ChatGui.Print(
-            $"[XIV Rus] EXD sheet schema cache: {stringColumnCacheCount:N0} entries " +
-            "(game sheet name -> global indexes of string columns).");
-        ChatGui.Print("[XIV Rus] Reported memory is unmanaged translation-buffer payload; object overhead is not included.");
-    }
-
-    private static void PrintSheetSchemaCache()
-    {
-        var entries = HookLayers.GetStringColumnIndicesCacheSnapshot()
-            .OrderBy(entry => entry.Key, StringComparer.Ordinal);
-
-        ChatGui.Print($"[XIV Rus] EXD sheet schema cache ({HookLayers.StringColumnCacheCount:N0} entries):");
-
-        foreach (var entry in entries)
-        {
-            ChatGui.Print($"[XIV Rus] {entry.Key}: [{string.Join(", ", entry.Value)}]");
-        }
-    }
-
-    private static string FormatBytes(long bytes)
-    {
-        const double megabyte = 1024d * 1024d;
-        return $"{bytes:N0} B / {bytes / megabyte:N2} MiB";
     }
 
     private async void OnUpdate(IFramework framework)
