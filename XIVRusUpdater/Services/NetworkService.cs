@@ -174,7 +174,7 @@ public class NetworkService
 
     public async Task InstallDownloadedVersionAsync(string filePath)
     {
-        var resourceDir = Plugin.HookLayers.parser.GetResourceDir();
+        var resourceDir = Plugin.HookLayers.Parser.GetResourceDir();
 
         try
         {
@@ -243,7 +243,7 @@ public class NetworkService
             var translationManifest = Plugin.State.Translation;
 
             penumbraManifest.Installed = Plugin.PenumbraApi.IsModInstalled(engine!.ModName);
-            translationManifest.Installed = !Plugin.HookLayers.parser.IsResourceEmpty();
+            translationManifest.Installed = !Plugin.HookLayers.Parser.IsResourceEmpty();
     
             var remote = await GetLastRemoteVersionAsync() ?? "Unknown";
 

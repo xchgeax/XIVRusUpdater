@@ -29,7 +29,7 @@ public sealed class TranslationResourceManager : IDisposable
 
             var sheetName = relative.Replace(Path.DirectorySeparatorChar, '/');
 
-            _cache[sheetName] = new FileResource(file, _format);
+            _cache[sheetName] = new FileResource(file, _format, sheetName);
         }
     }
 
