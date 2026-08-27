@@ -121,6 +121,7 @@ public class TranslationParser : IDisposable
             retiredResourceManagers.Clear();
         }
     }
+}
 
 public readonly record struct CacheMemoryStats(
     int ActiveResourceCount,
@@ -130,5 +131,4 @@ public readonly record struct CacheMemoryStats(
     int RetiredManagerCount)
 {
     public long TotalNativeMemoryBytes => ActiveNativeMemoryBytes + RetiredNativeMemoryBytes;
-}
 }
