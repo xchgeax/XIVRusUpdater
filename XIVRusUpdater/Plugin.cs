@@ -77,7 +77,7 @@ public sealed class Plugin : IDalamudPlugin
 
         CommandManager.AddHandler(CommandName, new CommandInfo(OnCommand)
         {
-            HelpMessage = "Open the plugin window. Use '/xivrus cache' for cache memory usage or '/xivrus sheetcache' to show the EXD sheet schema cache."
+            HelpMessage = "Open the plugin window. Use '/xivrus debug' for open debug window"
         });
 
         PluginInterface.UiBuilder.Draw += WindowSystem.Draw;

@@ -29,7 +29,7 @@ public class DebugWindow : Window, IDisposable
     private bool isLoaded;
 
     public DebugWindow()
-        : base("Dalamud Data", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
+        : base("XIVRus Debug", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
         Size = new Vector2(400, 300);
         SizeCondition = ImGuiCond.FirstUseEver;
