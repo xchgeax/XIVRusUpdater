@@ -38,11 +38,14 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\OtterGui\OtterGui.csproj" />
     <ProjectReference Include="..\XIVRus.Generators\XIVRus.Generators.csproj" ReferenceOutputAssembly="false" OutputItemType="Analyzer" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Update="DotNet.ReproducibleBuilds" Version="2.0.5" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Windows\Debug\WIdgets\" />
   </ItemGroup>
 </Project>
