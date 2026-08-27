@@ -1,9 +1,5 @@
 using System;
 using System.IO;
-using System.Linq;
-using System.Reflection;
-using System.Threading.Tasks;
-using CheapLoc;
 using Dalamud.Game.Command;
 using Dalamud.Interface.Windowing;
 using Dalamud.IoC;
@@ -20,29 +16,21 @@ namespace XIVRusUpdater;
 
 public sealed class Plugin : IDalamudPlugin
 {
-    [PluginService]
-    internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
+    [PluginService] internal static IDalamudPluginInterface PluginInterface { get; private set; } = null!;
 
-    [PluginService]
-    internal static IFramework Framework { get; private set; } = null!;
+    [PluginService] internal static IFramework Framework { get; private set; } = null!;
 
-    [PluginService]
-    internal static ICommandManager CommandManager { get; private set; } = null!;
+    [PluginService] internal static ICommandManager CommandManager { get; private set; } = null!;
 
-    [PluginService]
-    internal static IDataManager DataManager { get; private set; } = null!;
+    [PluginService] internal static IDataManager DataManager { get; private set; } = null!;
 
-    [PluginService]
-    internal static IChatGui ChatGui { get; private set; } = null!;
+    [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
 
-    [PluginService]
-    internal static INotificationManager NotificationManager { get; private set; } = null!;
+    [PluginService] internal static INotificationManager NotificationManager { get; private set; } = null!;
 
-    [PluginService]
-    internal static IPluginLog Log { get; private set; } = null!;
+    [PluginService] internal static IPluginLog Log { get; private set; } = null!;
 
-    [PluginService]
-    internal static IGameInteropProvider interopProvider { get; private set; } = null!;
+    [PluginService] internal static IGameInteropProvider interopProvider { get; private set; } = null!;
 
     public static EXDHooks HookLayers { get; private set; } = null!;
     public static TranslationFilter filter { get; private set; } = null!;
@@ -75,8 +63,7 @@ public sealed class Plugin : IDalamudPlugin
         State = new UpdaterState();
         networkService = new NetworkService(this);
         PenumbraApi = new PenumbraService(PluginInterface);
-        _ = Task.Run(Initialization);
-
+        
         Framework.Update += OnUpdate;
 
         var iconPath = Path.Combine(PluginInterface.AssemblyLocation.Directory?.FullName!, "icon.png");
@@ -101,29 +88,6 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.Draw += WindowSystem.Draw;
         PluginInterface.UiBuilder.OpenConfigUi += ToggleConfigUi;
         PluginInterface.UiBuilder.OpenMainUi += ToggleMainUi;
-        PluginInterface.LanguageChanged += OnLanguageChanged;
-    }
-
-    public async Task Initialization()
-    {
-        InitLocalization();
-    }
-
-    public void InitLocalization()
-    {
-        var lang = PluginInterface.UiLanguage;
-
-        var path = Path.Combine(PluginInterface.AssemblyLocation.Directory!.FullName, $"lang/{lang}.json");
-
-        if (!File.Exists(path))
-        {
-            Loc.SetupWithFallbacks(Assembly.GetExecutingAssembly());
-            return;
-        }
-
-        var json = File.ReadAllText(path);
-
-        Loc.Setup(json, Assembly.GetExecutingAssembly());
     }
 
     public void Dispose()
@@ -131,8 +95,7 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.Draw -= WindowSystem.Draw;
         PluginInterface.UiBuilder.OpenConfigUi -= ToggleConfigUi;
         PluginInterface.UiBuilder.OpenMainUi -= ToggleMainUi;
-        PluginInterface.LanguageChanged -= OnLanguageChanged;
-
+        
         WindowSystem.RemoveAllWindows();
 
         HookLayers.Dispose();
@@ -166,11 +129,6 @@ public sealed class Plugin : IDalamudPlugin
 
         DownloadWindow.IsOpen = State.Penumbra.Download.IsDownloading || State.Translation.Download.IsDownloading;
         Changelog.IsOpen = State.ShowChangelog;
-    }
-
-    private void OnLanguageChanged(string lang)
-    {
-        InitLocalization();
     }
 
     public void ToggleConfigUi() => ConfigWindow.Toggle();
