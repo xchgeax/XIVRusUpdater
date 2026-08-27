@@ -40,7 +40,7 @@ public sealed class NativeMemoryUsageWidget : IDebugWindowWidget
         try
         {
             var layer = Plugin.HookLayers;
-            var stats = layer.parser.GetCacheMemoryStats();
+            var stats = layer.Parser.GetCacheMemoryStats();
             totalNativeBytes = stats.TotalNativeMemoryBytes;
             retiredNativeBytes = stats.RetiredNativeMemoryBytes;
             activeResourceCount = stats.ActiveResourceCount;
